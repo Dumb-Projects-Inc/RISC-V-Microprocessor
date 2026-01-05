@@ -7,7 +7,7 @@ import chisel3.simulator.scalatest.ChiselSim
 class ImmGenTB extends AnyFunSpec with ChiselSim {
   describe("ImmGen") {
     it("should correctly reconstruct immediates") {
-      simulate(new ImmGen) { dut => 
+      simulate(new ImmGen) { dut =>
         // addi	x1,x0,1
         dut.io.instr.poke("h00100093".U)
         dut.io.format.poke(Format.I)
@@ -88,7 +88,6 @@ class ImmGenTB extends AnyFunSpec with ChiselSim {
         dut.io.format.poke(Format.J)
         dut.io.out.expect(-72.S)
 
-
         // assorted ai generated cases
 
         // S-Type Max Positive (2047)
@@ -112,7 +111,7 @@ class ImmGenTB extends AnyFunSpec with ChiselSim {
         dut.io.out.expect(-4096.S)
 
         // J-Type Max Positive (1048574)
-        dut.io.instr.poke("h7ffff06f".U) 
+        dut.io.instr.poke("h7ffff06f".U)
         dut.io.format.poke(Format.J)
         dut.io.out.expect(1048574.S)
 
