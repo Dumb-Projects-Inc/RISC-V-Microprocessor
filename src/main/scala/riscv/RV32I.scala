@@ -5,7 +5,7 @@ import chisel3._
 class RV32ITop extends Module {
   val io = IO(new Bundle {})
 
-  // 5-stage-pipeline-sim
+  val cpu = Module(new RV32I())
 
 }
 
