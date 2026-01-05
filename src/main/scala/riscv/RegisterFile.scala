@@ -44,7 +44,7 @@ class RegisterFile extends Module {
     io.readData2.valid := true.B
   }
 
-  when(io.writeReg.valid) {
+  when(io.writeReg.valid && io.writeReg.bits =/= 0.U) {
     regFile.writePorts(0).address := io.writeReg.bits
     regFile.writePorts(0).data := io.writeData
     regFile.writePorts(0).enable := true.B
