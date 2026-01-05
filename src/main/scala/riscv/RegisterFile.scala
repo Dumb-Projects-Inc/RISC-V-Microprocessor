@@ -1,7 +1,7 @@
 package riscv
 
 import chisel3._
-import chisel3.util.{Decoupled, SRAM}
+import chisel3.util.{Decoupled}
 
 class RegisterFile extends Module {
   val io = IO(new Bundle {
@@ -13,61 +13,27 @@ class RegisterFile extends Module {
     val readData2 = Decoupled(UInt(32.W))
   })
 
-  // Always ready
+  // always readu for read requests
   io.readReg1.ready := true.B
   io.readReg2.ready := true.B
   io.writeReg.ready := true.B
 
-  // Regfile as 2 port read 1 port write and 0 read/write ports
-  val regFile = SRAM(32, UInt(32.W), 2, 1, 0)
-  regFile.readPorts(0).address := DontCare
-  regFile.readPorts(1).address := DontCare
-  regFile.writePorts(0).address := DontCare
-  regFile.writePorts(0).data := DontCare
+  // Yes this wastes 32 bits for x0, but simplifies logic
+  val regFile = SyncReadMem(32, UInt(32.W))
 
-  when(io.readReg1.valid) {
-    regFile.readPorts(0).address := io.readReg1.bits
-    regFile.readPorts(0).enable := true.B
-  }.otherwise {
-    regFile.readPorts(0).enable := false.B
-  }
-  when(io.readReg2.valid) {
-    regFile.readPorts(1).address := io.readReg2.bits
-    regFile.readPorts(1).enable := true.B
-  }.otherwise {
-    regFile.readPorts(1).enable := false.B
+  val r1 = regFile.read(io.readReg1.bits, io.readReg1.valid)
+  val r2 = regFile.read(io.readReg2.bits, io.readReg2.valid)
+  val r1ValidReg = RegNext(io.readReg1.valid, false.B)
+  val r2ValidReg = RegNext(io.readReg2.valid, false.B)
+
+  io.readData1.bits := Mux(io.readReg1.bits === 0.U, 0.U, r1)
+  io.readData2.bits := Mux(io.readReg2.bits === 0.U, 0.U, r2)
+  // 1-clock delay for read data valid
+  io.readData1.valid := r1ValidReg
+  io.readData2.valid := r2ValidReg
+
+  when(io.writeReg.valid && (io.writeReg.bits =/= 0.U)) {
+    regFile.write(io.writeReg.bits, io.writeData)
   }
 
-  // When data is read, set the valid signal
-  io.readData1.valid := false.B
-  io.readData2.valid := false.B
-
-  val readPort1Data = Mux(
-    io.readReg1.bits =/= 0.U,
-    regFile.readPorts(0).data,
-    0.U
-  )
-  val readPort2Data = Mux(
-    io.readReg2.bits =/= 0.U,
-    regFile.readPorts(1).data,
-    0.U
-  )
-  io.readData1.bits := readPort1Data
-  io.readData2.bits := readPort2Data
-
-  when(regFile.readPorts(0).enable) {
-    io.readData1.valid := true.B
-  }
-
-  when(regFile.readPorts(1).enable) {
-    io.readData2.valid := true.B
-  }
-
-  when(io.writeReg.valid && io.writeReg.bits =/= 0.U) {
-    regFile.writePorts(0).address := io.writeReg.bits
-    regFile.writePorts(0).data := io.writeData
-    regFile.writePorts(0).enable := true.B
-  }.otherwise {
-    regFile.writePorts(0).enable := false.B
-  }
 }
