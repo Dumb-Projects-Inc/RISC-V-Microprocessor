@@ -23,9 +23,19 @@
           inherit system;
           overlays = [self.overlays.default];
         };
+        crossCompilation = pkgs.pkgsCross.riscv32.buildPackages;
       in {
         default = pkgs.mkShell {
-          packages = with pkgs; [sbt verilator circt python3 coursier jdk25_headless];
+          packages = with pkgs;
+            [
+              sbt
+              verilator
+              circt
+              python3
+              coursier
+              jdk25_headless
+            ]
+            ++ [crossCompilation.gcc crossCompilation.binutils];
           CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
         };
       }
