@@ -3,3 +3,4 @@ target/
 build/
 .bloop/
 .metals/
+.vscode/
