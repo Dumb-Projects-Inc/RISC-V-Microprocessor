@@ -1,7 +1,7 @@
 package riscv
 
 import chisel3._
-import chisel3.util.MuxLookup
+import chisel3.util._
 
 object ALUSrc extends ChiselEnum {
   val Imm, Reg = Value
@@ -50,16 +50,23 @@ class ImmGen extends Module {
     val out = Output(SInt(32.W))
   })
 
-  io.out := MuxLookup(io.format, 0.S)(
-    Seq(
-      Format.I -> io.instr(31, 20).asSInt,
-      Format.S -> (io.instr(31, 25) ## io.instr(11, 7)).asSInt,
-      Format.B -> (io.instr(31) ## io.instr(7) ## io.instr(30, 25) ## io
-        .instr(11, 8) ## 0.U(1.W)).asSInt,
-      Format.U -> (io.instr(31, 12) ## 0.U(12.W)).asSInt,
-      Format.J -> (io.instr(31) ## io.instr(19, 12) ## io.instr(20) ## io
-        .instr(30, 21) ## 0.U(1.W)).asSInt
-    )
-  )
+  io.out := DontCare
+  switch(io.format) {
+    is(Format.I) {
+      io.out := io.instr(31, 20).asSInt
+    }
+    is(Format.S) {
+      io.out := (io.instr(31, 25) ## io.instr(11, 7)).asSInt
+    }
+    is(Format.B) {
+      io.out := (io.instr(31) ## io.instr(7) ## io.instr(30, 25) ## io.instr(11, 8) ## 0.U(1.W)).asSInt
+    }
+    is(Format.U) {
+      io.out := (io.instr(31, 12) ## 0.U(12.W)).asSInt
+    }
+    is(Format.J) {
+      io.out := (io.instr(31) ## io.instr(19, 12) ## io.instr(20) ## io.instr(30, 21) ## 0.U(1.W)).asSInt
+    }
+  }
 
 }
