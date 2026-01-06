@@ -3,8 +3,17 @@ package riscv
 import chisel3._
 import chisel3.util._
 
-object ALUSrc extends ChiselEnum {
-  val Imm, Reg = Value
+object Instruction {
+  def ADDI    = BitPat("b????????????_?????_000_?????_0010011")
+  def ADD     = BitPat("b0000000_?????_?????_000_?????_0110011")
+}
+
+object ALUInput1 extends ChiselEnum {
+  val Rs1, Pc = Value
+}
+
+object ALUInput2 extends ChiselEnum {
+  val Rs2, Imm = Value
 }
 
 object ALUOp extends ChiselEnum {
@@ -15,33 +24,52 @@ object Format extends ChiselEnum {
   val R, I, S, B, U, J = Value
 }
 
-object Opcodes extends ChiselEnum {
-  val LUI = "b0110111".U
-  val AUIPC = "b0010111".U
-  val JAL = "b1101111".U
-  val JALR = "b1100111".U
-  val BRANCH = "b1100011".U
-  val LOAD = "b0000011".U
-  val STORE = "b0100011".U
-  val IMM = "b0010011".U
-  val REG = "b0110011".U
-}
 
-// TODO: possible optimization, consider using https://www.chisel-lang.org/docs/explanations/decoder to minimize logic
+// TODO: Consider using https://www.chisel-lang.org/docs/explanations/decoder to minimize logic
 class Decoder extends Module {
   val io = IO(new Bundle {
-    val instr = Input(Bits(32.W))
+    val instr = Input(UInt(32.W))
+    val rd = Output(UInt(5.W))
+    val rs1 = Output(UInt(5.W))
+    val rs2 = Output(UInt(5.W))
+    val aluOp = Output(ALUOp())
+    val aluInput1 = Output(ALUInput1())
+    val aluInput2 = Output(ALUInput2())
+    val imm = Output(SInt(32.W))
   })
 
-  val opcode = io.instr(6, 0)
-  val funct3 = io.instr(14, 12)
-  val funct7 = io.instr(31, 25)
+  // val opcode = io.instr(6, 0)
+  // val funct3 = io.instr(14, 12)
+  // val funct7 = io.instr(31, 25)
 
-  val rd = io.instr(11, 7)
-  val rs1 = io.instr(19, 15)
-  val rs2 = io.instr(24, 20)
+  io.rd := io.instr(11, 7)
+  io.rs1 := io.instr(19, 15)
+  io.rs2 := io.instr(24, 20)
 
+  io.aluOp := DontCare
+  io.aluInput1 := DontCare
+  io.aluInput2 := DontCare
+
+  val format = WireInit(Format())
+  val immGen = Module(new ImmGen)
+  immGen.io.instr := io.instr
+  immGen.io.format := format
+  io.imm := immGen.io.out
+
+  when(io.instr === Instruction.ADDI) {
+    io.aluOp := ALUOp.Add
+    io.aluInput1 := ALUInput1.Rs1
+    io.aluInput2 := ALUInput2.Imm
+    format := Format.I
+  } .elsewhen(io.instr === Instruction.ADD) {
+    io.aluOp := ALUOp.Add
+    io.aluInput1 := ALUInput1.Rs1
+    io.aluInput2 := ALUInput2.Rs2
+    format := Format.R
+  }
 }
+
+
 
 class ImmGen extends Module {
   val io = IO(new Bundle {
@@ -67,6 +95,7 @@ class ImmGen extends Module {
     is(Format.J) {
       io.out := (io.instr(31) ## io.instr(19, 12) ## io.instr(20) ## io.instr(30, 21) ## 0.U(1.W)).asSInt
     }
+    // TODO: Z-Format / System instructions
   }
 
 }
