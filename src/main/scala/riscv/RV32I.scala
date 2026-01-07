@@ -1,6 +1,7 @@
 package riscv
 
 import chisel3._
+import chisel3.util._
 
 class RV32ITop extends Module {
   val io = IO(new Bundle {})
@@ -27,17 +28,40 @@ class RV32I extends Module {
   rd1 := regFile.io.readData1.bits
   rd2 := regFile.io.readData2.bits
 
+  // Caches for instruction and data memory
+  val ICache = Module(
+    new Cache(numLines = 64, lineSize = 64)
+  ) // 4KB instruction cache
+
+  val DCache = Module(
+    new Cache(numLines = 64, lineSize = 64)
+  ) // 4KB data cache
+
   // IF
-  val instr = Wire(Valid(UInt(32.W))) // TODO: fetch instruction from memory
-  instr.valid := true.B
+  ICache.io.addr := pc
+  ICache.io.writeEnable := false.B
+  ICache.io.writeData := DontCare
+
   // Hardcoded to addi x1, x0, 0x123
-  instr.bits := 0x12300093.U
+  // val instr := 0x12300093.U
+  val instr = ICache.io.readData
+  when(!ICache.io.hit) {
+    instr.valid := false.B
+    // TODO: fetch from memory
+    ICache.io.writeEnable := true.B
+    ICache.io.writeData := 0x12300093.U
+    instr.bits := 0x12300093.U
+    instr.valid := true.B
+  }
+  when(instr.valid) {
+    pc := pc + 4.U
+  }
   val IF_ID = Pipe(instr)
   // ID
   val ID_EQ = Pipe(IF_ID)
   ID_EQ.valid := IF_ID.valid
+  val decoder = Module(new Decoder)
   when(IF_ID.valid) {
-    val decoder = Module(new Decoder)
     decoder.io.instr := IF_ID.bits
     // TODO: give the register file the registers to read
     regFile.io.readReg1.bits := decoder.io.rs1
