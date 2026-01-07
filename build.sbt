@@ -4,6 +4,8 @@ ThisBuild / organization := "Dumb-Projects-Inc"
 
 val chiselVersion = "7.6.0"
 
+lazy val isaSim = RootProject(file("external/isa-sim"))
+
 lazy val root = (project in file("."))
   .settings(
     name := "RISC-V-Microprocessor",
@@ -20,8 +22,8 @@ lazy val root = (project in file("."))
     ),
     addCompilerPlugin(
       "org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full
-    )
+    ),
+    Test / testOptions +=
+      Tests.Argument(TestFrameworks.ScalaTest, "-DemitVcd=1")
   )
-
-Test / testOptions +=
-  Tests.Argument(TestFrameworks.ScalaTest, "-DemitVcd=1")
+  .dependsOn(isaSim % "test->compile")
