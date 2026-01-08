@@ -52,3 +52,38 @@ class Cache(numLines: Int, lineSize: Int) extends Module {
   }
 
 }
+
+// Static Memory mapping
+// Following the https://riscv.org/blog/design-approaches-and-architectures-of-risc-v-socs/ embedded memory map
+//
+//
+//
+// 0x00000000 - 0x0FFFFFFF : Peripherals
+
+object MemoryMap {
+  val Peripherals = 0x00000000.U(32.W)
+  val ProgramMemory = 0x10000000.U(32.W)
+  val BIOS = 0xfffff000.U(32.W) // 512 bytes for BIOS
+}
+
+class CacheController extends Module {
+  val io = IO(new Bundle {
+    // Define cache controller IO here
+  })
+
+  val L1InstructionCache = Module(
+    new Cache(numLines = 4, lineSize = 1024)
+  ) // long lines, short cache, 1024 bytes = 256 instructions per line, still 4Kb
+  val L1DataCache = Module(
+    new Cache(numLines = 64, lineSize = 64)
+  ) // 4KB data cache
+
+  L1InstructionCache.io.addr := DontCare
+  L1InstructionCache.io.writeEnable := false.B
+  L1InstructionCache.io.writeData := DontCare
+
+  L1DataCache.io.addr := DontCare
+  L1DataCache.io.writeEnable := false.B
+  L1DataCache.io.writeData := DontCare
+
+}

@@ -4,11 +4,12 @@ import chisel3._
 import chisel3.util._
 
 object Instruction {
-  def ADDI    = BitPat("b????????????_?????_000_?????_0010011")
-  def ADD     = BitPat("b0000000_?????_?????_000_?????_0110011")
-  def LD      = BitPat("b????????????_?????_011_?????_0000011")
-  def SD      = BitPat("b???????_?????_?????_011_?????_0100011")
-  def JAL     = BitPat("b????????????????????_?????_1101111")
+  def ADDI = BitPat("b????????????_?????_000_?????_0010011")
+  def ADD = BitPat("b0000000_?????_?????_000_?????_0110011")
+  def LD = BitPat("b????????????_?????_011_?????_0000011")
+  def SD = BitPat("b???????_?????_?????_011_?????_0100011")
+  def JAL = BitPat("b????????????????????_?????_1101111")
+
 }
 
 object ALUInput1 extends ChiselEnum {
@@ -27,11 +28,13 @@ object WriteSource extends ChiselEnum {
   val ALU, Memory = Value
 }
 
+object BranchType extends ChiselEnum {
+  val BEQ, BNE, NO, J, BLT, BGE, BLTU, BGEU = Value
+}
 
 object Format extends ChiselEnum {
   val R, I, S, B, U, J = Value
 }
-
 
 // TODO: Consider using https://www.chisel-lang.org/docs/explanations/decoder to minimize logic
 class Decoder extends Module {
@@ -72,7 +75,7 @@ class Decoder extends Module {
     io.aluInput2 := ALUInput2.Imm
     io.writeSource := WriteSource.ALU
     format := Format.I
-  } .elsewhen(io.instr === Instruction.ADD) {
+  }.elsewhen(io.instr === Instruction.ADD) {
     io.aluOp := ALUOp.Add
     io.aluInput1 := ALUInput1.Rs1
     io.aluInput2 := ALUInput2.Rs2
@@ -80,8 +83,6 @@ class Decoder extends Module {
     format := Format.R
   }
 }
-
-
 
 class ImmGen extends Module {
   val io = IO(new Bundle {
@@ -99,13 +100,17 @@ class ImmGen extends Module {
       io.out := (io.instr(31, 25) ## io.instr(11, 7)).asSInt
     }
     is(Format.B) {
-      io.out := (io.instr(31) ## io.instr(7) ## io.instr(30, 25) ## io.instr(11, 8) ## 0.U(1.W)).asSInt
+      io.out := (io.instr(31) ## io.instr(7) ## io.instr(30, 25) ## io.instr(
+        11,
+        8
+      ) ## 0.U(1.W)).asSInt
     }
     is(Format.U) {
       io.out := (io.instr(31, 12) ## 0.U(12.W)).asSInt
     }
     is(Format.J) {
-      io.out := (io.instr(31) ## io.instr(19, 12) ## io.instr(20) ## io.instr(30, 21) ## 0.U(1.W)).asSInt
+      io.out := (io.instr(31) ## io.instr(19, 12) ## io
+        .instr(20) ## io.instr(30, 21) ## 0.U(1.W)).asSInt
     }
     // TODO: Z-Format / System instructions
   }
