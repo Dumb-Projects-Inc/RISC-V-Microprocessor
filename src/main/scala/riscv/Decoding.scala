@@ -20,7 +20,7 @@ object ALUInput2 extends ChiselEnum {
 }
 
 object ALUOp extends ChiselEnum {
-  val Add, Sub = Value
+  val Add, Sub, Sll, Slt, Sltu, Xor, Srl, Sra, Or, And = Value
 }
 
 object Format extends ChiselEnum {
