@@ -84,7 +84,7 @@ class RV32I extends Module {
   alu.io.op := decoder.io.aluOp
   val aluResult = alu.io.result.asUInt
   // MEM
-  
+
   val temporaryMemoryOutput = 0x69.U
 
   // WB
@@ -99,5 +99,11 @@ class RV32I extends Module {
       regFile.io.writeData := temporaryMemoryOutput
     }
   }
+
+  val branchLogic = Module(new BranchLogic())
+  branchLogic.io.data1 := rd1.asSInt
+  branchLogic.io.data2 := rd2.asSInt
+  branchLogic.io.branchJump := BranchType.NO // Dummy
+  val pcSelect = branchLogic.io.pcSelect
 
 }
