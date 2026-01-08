@@ -28,10 +28,6 @@ class RV32I extends Module {
     new Cache(numLines = 64, lineSize = 64)
   ) // 4KB instruction cache
 
-  val DCache = Module(
-    new Cache(numLines = 64, lineSize = 64)
-  ) // 4KB data cache
-
   // IF
   ICache.io.addr := pc
   ICache.io.writeEnable := false.B
@@ -51,35 +47,5 @@ class RV32I extends Module {
   when(instr.valid) {
     pc := pc + 4.U
   }
-  val IF_ID = Pipe(instr)
-  // ID
-  val ID_EQ = Pipe(IF_ID)
-  ID_EQ.valid := IF_ID.valid
-  val decoder = Module(new Decoder)
-  when(IF_ID.valid) {
-    decoder.io.instr := IF_ID.bits
-    // TODO: give the register file the registers to read
-    regFile.io.readReg1 := decoder.io.rs1
-    regFile.io.readReg2 := decoder.io.rs2
-  }
-
-  // EX
-  val EX_MEM = Pipe(ID_EQ)
-  EX_MEM.valid := ID_EQ.valid
-
-  decoder.io.imm := DontCare // TODO: connect immediate generator
-  val _a2 =
-    decoder.io.aluInput2 // TODO: use ALU i  val _a1 = decoder.io.aluInput1 // TODO: use ALU input 1nput 2
-  val _ao = decoder.io.aluOp // TODO: use ALU operation
-
-  // MEM
-  val MEM_WB = Pipe(EX_MEM)
-  MEM_WB.valid := EX_MEM.valid
-
-  // WB
-
-  regFile.io.writeReg.bits := decoder.io.rd // assume decoder just returns x0 if no write
-  regFile.io.writeReg.valid := true.B
-  regFile.io.writeData := 42.U // TODO: get data from ALU or memory
 
 }
