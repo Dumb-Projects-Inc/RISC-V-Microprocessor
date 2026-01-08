@@ -16,17 +16,12 @@ class RV32I extends Module {
   val pc = RegInit(0.U(32.W))
 
   val regFile = Module(new RegisterFile())
-  regFile.io.readReg1.valid := false.B
-  regFile.io.readReg2.valid := false.B
-  regFile.io.writeReg.valid := false.B
   regFile.io.writeData := DontCare
 
   val rd1 = WireDefault(0.U(32.W))
   val rd2 = WireDefault(0.U(32.W))
-  regFile.io.readData1.ready := true.B
-  regFile.io.readData2.ready := true.B
-  rd1 := regFile.io.readData1.bits
-  rd2 := regFile.io.readData2.bits
+  rd1 := regFile.io.readData1
+  rd2 := regFile.io.readData2
 
   // Caches for instruction and data memory
   val ICache = Module(
@@ -64,8 +59,8 @@ class RV32I extends Module {
   when(IF_ID.valid) {
     decoder.io.instr := IF_ID.bits
     // TODO: give the register file the registers to read
-    regFile.io.readReg1.bits := decoder.io.rs1
-    regFile.io.readReg2.bits := decoder.io.rs2
+    regFile.io.readReg1 := decoder.io.rs1
+    regFile.io.readReg2 := decoder.io.rs2
   }
 
   // EX
@@ -73,8 +68,8 @@ class RV32I extends Module {
   EX_MEM.valid := ID_EQ.valid
 
   decoder.io.imm := DontCare // TODO: connect immediate generator
-  val _a1 = decoder.io.aluInput1 // TODO: use ALU input 1
-  val _a2 = decoder.io.aluInput2 // TODO: use ALU input 2
+  val _a2 =
+    decoder.io.aluInput2 // TODO: use ALU i  val _a1 = decoder.io.aluInput1 // TODO: use ALU input 1nput 2
   val _ao = decoder.io.aluOp // TODO: use ALU operation
 
   // MEM
