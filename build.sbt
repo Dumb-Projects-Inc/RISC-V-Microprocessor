@@ -4,7 +4,7 @@ ThisBuild / organization := "Dumb-Projects-Inc"
 
 val chiselVersion = "7.6.0"
 
-lazy val isaSim = RootProject(file("external/isa-sim"))
+lazy val isaSim = RootProject(uri("https://github.com/Dumb-Projects-Inc/02155-RISC-V-ISA-SIM.git"))
 
 lazy val root = (project in file("."))
   .settings(
