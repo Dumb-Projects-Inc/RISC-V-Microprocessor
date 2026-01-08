@@ -36,6 +36,23 @@ object Format extends ChiselEnum {
   val R, I, S, B, U, J = Value
 }
 
+class ControlSignals {
+  class EX extends Bundle {
+    val aluOp     = ALUOp()
+    val aluInput1 = ALUInput1()
+    val aluInput2 = ALUInput2()
+  }
+  class MEM extends Bundle {
+    // TODO: 
+  }
+  class WB extends Bundle {
+    val writeEnable = Bool()
+    val writeSource = WriteSource() 
+  }
+}
+
+
+
 // TODO: Consider using https://www.chisel-lang.org/docs/explanations/decoder to minimize logic
 class Decoder extends Module {
   val io = IO(new Bundle {
@@ -47,6 +64,7 @@ class Decoder extends Module {
     val aluInput1 = Output(ALUInput1())
     val aluInput2 = Output(ALUInput2())
     val writeSource = Output(WriteSource())
+    val writeEnable = Output(Bool())
     val imm = Output(SInt(32.W))
   })
 
@@ -61,6 +79,8 @@ class Decoder extends Module {
   io.aluOp := DontCare
   io.aluInput1 := DontCare
   io.aluInput2 := DontCare
+  io.writeSource := DontCare
+  io.writeEnable := DontCare
 
   val format = Wire(Format())
   format := DontCare
@@ -74,12 +94,14 @@ class Decoder extends Module {
     io.aluInput1 := ALUInput1.Rs1
     io.aluInput2 := ALUInput2.Imm
     io.writeSource := WriteSource.ALU
+    io.writeEnable := true.B
     format := Format.I
   }.elsewhen(io.instr === Instruction.ADD) {
     io.aluOp := ALUOp.Add
     io.aluInput1 := ALUInput1.Rs1
     io.aluInput2 := ALUInput2.Rs2
     io.writeSource := WriteSource.ALU
+    io.writeEnable := true.B
     format := Format.R
   }
 }
