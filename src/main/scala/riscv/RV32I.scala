@@ -22,6 +22,7 @@ class RV32I extends Module {
   // IF
   val instr = 0x12300093.U(32.W) // Dummy instruction: addi x1, x0, 0x123
   pc := pc + 4.U
+
   // ID
   val decoder = Module(new Decoder())
   decoder.io.instr := instr
@@ -40,7 +41,20 @@ class RV32I extends Module {
   alu.io.op := decoder.io.aluOp
   val aluResult = alu.io.result.asUInt
   // MEM
+  
+  val temporaryMemoryOutput = 0x69.U
 
   // WB
+
+  regFile.io.writeData := DontCare
+
+  switch(decoder.io.writeSource) {
+    is(WriteSource.ALU) {
+      regFile.io.writeData := aluResult
+    }
+    is(WriteSource.Memory) {
+      regFile.io.writeData := temporaryMemoryOutput
+    }
+  }
 
 }

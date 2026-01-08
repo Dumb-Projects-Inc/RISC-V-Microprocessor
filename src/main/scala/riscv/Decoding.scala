@@ -23,6 +23,11 @@ object ALUOp extends ChiselEnum {
   val Add, Sub, Sll, Slt, Sltu, Xor, Srl, Sra, Or, And = Value
 }
 
+object WriteSource extends ChiselEnum {
+  val ALU, Memory = Value
+}
+
+
 object Format extends ChiselEnum {
   val R, I, S, B, U, J = Value
 }
@@ -38,6 +43,7 @@ class Decoder extends Module {
     val aluOp = Output(ALUOp())
     val aluInput1 = Output(ALUInput1())
     val aluInput2 = Output(ALUInput2())
+    val writeSource = Output(WriteSource())
     val imm = Output(SInt(32.W))
   })
 
@@ -64,11 +70,13 @@ class Decoder extends Module {
     io.aluOp := ALUOp.Add
     io.aluInput1 := ALUInput1.Rs1
     io.aluInput2 := ALUInput2.Imm
+    io.writeSource := WriteSource.ALU
     format := Format.I
   } .elsewhen(io.instr === Instruction.ADD) {
     io.aluOp := ALUOp.Add
     io.aluInput1 := ALUInput1.Rs1
     io.aluInput2 := ALUInput2.Rs2
+    io.writeSource := WriteSource.ALU
     format := Format.R
   }
 }
