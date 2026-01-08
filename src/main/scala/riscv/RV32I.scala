@@ -2,7 +2,6 @@ package riscv
 
 import chisel3._
 import chisel3.util._
-import java.util.Base64.Decoder
 
 class RV32ITop extends Module {
   val io = IO(new Bundle {})
