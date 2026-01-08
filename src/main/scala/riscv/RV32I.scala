@@ -5,10 +5,12 @@ import chisel3.util._
 
 class Pipeline {
   class IF_ID extends Bundle {
+    val valid = Bool()
     val instr = UInt(32.W)
     val pc    = UInt(32.W)
   }
   class ID_EX extends Bundle {
+    val valid   = Bool()
     val rs1     = UInt(5.W)
     val rs2     = UInt(5.W)
     val rd      = UInt(5.W)
@@ -21,6 +23,7 @@ class Pipeline {
     }
   }
   class EX_MEM extends Bundle {
+    val valid     = Bool()
     val pc        = UInt(32.W)
     val rd        = UInt(5.W)
     val aluResult = UInt(32.W)
@@ -32,6 +35,7 @@ class Pipeline {
     }
   }
   class MEM_WB extends Bundle {
+    val valid     = Bool()
     val memOut    = UInt(32.W)
     val pc        = UInt(32.W)
     val aluResult = UInt(32.W)
