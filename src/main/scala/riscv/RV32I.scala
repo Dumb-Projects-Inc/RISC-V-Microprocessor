@@ -17,9 +17,9 @@ class Pipeline {
     val pc      = UInt(32.W)
     val imm     = SInt(32.W)
     val control = new Bundle {
-      val ex    = ControlSignals.EX()
-      val mem   = ControlSignals.MEM()
-      val wb    = ControlSignals.WB()
+      val ex    = new ControlSignals.EX
+      val mem   = new ControlSignals.MEM
+      val wb    = new ControlSignals.WB
     }
   }
   class EX_MEM extends Bundle {
@@ -30,8 +30,8 @@ class Pipeline {
     val imm       = SInt(32.W)
     val memAddr   = UInt(32.W)
     val control   = new Bundle {
-      val mem     = ControlSignals.MEM()
-      val wb      = ControlSignals.WB()
+      val mem     = new ControlSignals.MEM
+      val wb      = new ControlSignals.WB
     }
   }
   class MEM_WB extends Bundle {
@@ -41,7 +41,7 @@ class Pipeline {
     val aluResult = UInt(32.W)
     val imm       = SInt(32.W)
     val control   = new Bundle {
-      val wb      = ControlSignals.WB()
+      val wb      = new ControlSignals.WB
     }
   }
 }

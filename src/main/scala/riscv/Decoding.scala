@@ -36,7 +36,7 @@ object Format extends ChiselEnum {
   val R, I, S, B, U, J = Value
 }
 
-class ControlSignals {
+object ControlSignals {
   class EX extends Bundle {
     val aluOp     = ALUOp()
     val aluInput1 = ALUInput1()
