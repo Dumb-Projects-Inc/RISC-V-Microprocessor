@@ -3,15 +3,6 @@ Product for DTU course 02114 Design of a RISC-V microprocessor
 
 ## Getting started
 
-### Clone with submodules
-```bash
-git clone --recursive https://github.com/Dumb-Projects-Inc/RISC-V-Microprocessor.git
-```
-Or if already cloned
-```bash
-git submodule update --init --recursive
-```
-
 ### Running
 Project uses sbt, helpful commands:
 ```bash

@@ -1,3 +1,0 @@
-[submodule "external/isa-sim"]
-	path = external/isa-sim
-	url = https://github.com/Dumb-Projects-Inc/02155-RISC-V-ISA-SIM.git
