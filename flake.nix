@@ -32,8 +32,8 @@
               verilator
               circt
               python3
-              coursier
               jdk25_headless
+              metals
             ]
             ++ [crossCompilation.gcc crossCompilation.binutils];
           CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
