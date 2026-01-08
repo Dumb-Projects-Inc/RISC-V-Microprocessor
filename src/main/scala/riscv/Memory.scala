@@ -22,25 +22,13 @@ class Memory(depthWords: Int) extends Module {
   })
 
   val mem = SyncReadMem(depthWords, UInt(32.W))
-
-  val respHolding = RegInit(false.B)
-  val respDataReg = Reg(UInt(32.W))
-
-  io.fetch.req.ready := !respHolding
-
-  val doRead = io.fetch.req.fire
+  val doRead  = io.fetch.req.fire
   val readIdx = io.fetch.req.bits.addr(31, 2)
   val readData = mem.read(readIdx, doRead)
 
-  val respValidNext = RegNext(doRead, init = false.B)
 
-  when(respValidNext) {
-    respHolding := true.B
-    respDataReg := readData
-  }.elsewhen(io.fetch.resp.fire) {
-    respHolding := false.B
-  }
+  io.fetch.req.ready := true.B
 
-  io.fetch.resp.valid := respHolding
-  io.fetch.resp.bits.data := respDataReg
+  io.fetch.resp.valid := RegNext(doRead, init = false.B)
+  io.fetch.resp.bits.data := readData
 }
