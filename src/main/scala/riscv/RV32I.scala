@@ -87,7 +87,7 @@ class RV32I extends Module {
   val branchLogic = Module(new BranchLogic())
   branchLogic.io.data1 := rd1Val.asSInt
   branchLogic.io.data2 := rd2Val.asSInt
-  branchLogic.io.branchJump := BranchType.NO // Dummy
+  branchLogic.io.branchJump := decoder.io.branchType
   val pcSelect = branchLogic.io.pcSelect
   // MEM
 

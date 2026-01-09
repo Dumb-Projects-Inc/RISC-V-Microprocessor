@@ -8,7 +8,15 @@ object Instruction {
   def ADD = BitPat("b0000000_?????_?????_000_?????_0110011")
   def LD = BitPat("b????????????_?????_011_?????_0000011")
   def SD = BitPat("b???????_?????_?????_011_?????_0100011")
+
   def JAL = BitPat("b????????????????????_?????_1101111")
+  def JALR = BitPat("b????????????_?????_000_?????_1100111")
+  def BEQ = BitPat("b????????????_?????_000_?????_1100011")
+  def BNE = BitPat("b????????????_?????_001_?????_1100011")
+  def BLT = BitPat("b????????????_?????_100_?????_1100011")
+  def BGE = BitPat("b????????????_?????_101_?????_1100011")
+  def BLTU = BitPat("b????????????_?????_110_?????_1100011")
+  def BGEU = BitPat("b????????????_?????_111_?????_1100011")
 
 }
 
@@ -38,20 +46,18 @@ object Format extends ChiselEnum {
 
 object ControlSignals {
   class EX extends Bundle {
-    val aluOp     = ALUOp()
+    val aluOp = ALUOp()
     val aluInput1 = ALUInput1()
     val aluInput2 = ALUInput2()
   }
   class MEM extends Bundle {
-    // TODO: 
+    // TODO:
   }
   class WB extends Bundle {
     val writeEnable = Bool()
-    val writeSource = WriteSource() 
+    val writeSource = WriteSource()
   }
 }
-
-
 
 // TODO: Consider using https://www.chisel-lang.org/docs/explanations/decoder to minimize logic
 class Decoder extends Module {
@@ -65,6 +71,7 @@ class Decoder extends Module {
     val aluInput2 = Output(ALUInput2())
     val writeSource = Output(WriteSource())
     val writeEnable = Output(Bool())
+    val branchType = Output(BranchType())
     val imm = Output(SInt(32.W))
   })
 
@@ -81,6 +88,7 @@ class Decoder extends Module {
   io.aluInput2 := DontCare
   io.writeSource := DontCare
   io.writeEnable := DontCare
+  io.branchType := BranchType.NO
 
   val format = Wire(Format())
   format := DontCare
@@ -96,7 +104,8 @@ class Decoder extends Module {
     io.writeSource := WriteSource.ALU
     io.writeEnable := true.B
     format := Format.I
-  }.elsewhen(io.instr === Instruction.ADD) {
+  }
+  when(io.instr === Instruction.ADD) {
     io.aluOp := ALUOp.Add
     io.aluInput1 := ALUInput1.Rs1
     io.aluInput2 := ALUInput2.Rs2
@@ -104,6 +113,27 @@ class Decoder extends Module {
     io.writeEnable := true.B
     format := Format.R
   }
+
+  // Branches
+  when(io.instr === Instruction.JAL) {
+    io.aluOp := ALUOp.Add
+    io.aluInput1 := ALUInput1.Pc
+    io.aluInput2 := ALUInput2.Imm
+    io.writeSource := WriteSource.ALU
+    io.writeEnable := true.B
+    format := Format.J
+    io.branchType := BranchType.J
+  }
+  when(io.instr === Instruction.JALR) {
+    io.aluOp := ALUOp.Add
+    io.aluInput1 := ALUInput1.Rs1
+    io.aluInput2 := ALUInput2.Imm
+    io.writeSource := WriteSource.ALU
+    io.writeEnable := true.B
+    format := Format.I
+    io.branchType := BranchType.J
+  }
+
 }
 
 class ImmGen extends Module {
