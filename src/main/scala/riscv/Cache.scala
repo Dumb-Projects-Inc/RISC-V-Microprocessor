@@ -55,35 +55,51 @@ class Cache(numLines: Int, lineSize: Int) extends Module {
 
 // Static Memory mapping
 // Following the https://riscv.org/blog/design-approaches-and-architectures-of-risc-v-socs/ embedded memory map
-//
-//
-//
-// 0x00000000 - 0x0FFFFFFF : Peripherals
+// 0x0001_0000 - 0x0070_0000  : Program Memory (RAM)
+// 0x0000_1000 - 0x0000_FFFF : Peripherals 60kb
+// 0x0000_0000 - 0x0000_0FFF : ROM 4kb
 
 object MemoryMap {
-  val Peripherals = 0x00000000.U(32.W)
-  val ProgramMemory = 0x10000000.U(32.W)
-  val BIOS = 0xfffff000.U(32.W) // 512 bytes for BIOS
+  val RomStart = 0x00000000
+  val RomEnd = 0x00000fff
+  val PeripheralsStart = 0x00001000
+  val PeripheralsEnd = 0x0000ffff
+  val ProgramMemoryStart = 0x00010000
+  val ProgramMemoryEnd = 0x00700000
+}
+
+class CacheRequest extends Bundle {
+  val addr = UInt(32.W)
+  val writeData = UInt(1024.W)
+  val dataLength = UInt(3.W)
+  val writeEnable = Bool()
 }
 
 class CacheController extends Module {
   val io = IO(new Bundle {
     // Define cache controller IO here
+    val instrAddr = Input(UInt(32.W))
+    val request = Input(new CacheRequest())
+    val stall = Output(Bool())
+    val flush = Input(Bool()) // fence.i instruction
   })
 
-  val L1InstructionCache = Module(
+  val L1ICache = Module(
     new Cache(numLines = 4, lineSize = 1024)
   ) // long lines, short cache, 1024 bytes = 256 instructions per line, still 4Kb
-  val L1DataCache = Module(
-    new Cache(numLines = 64, lineSize = 64)
+  val L1DCache = Module(
+    new Cache(numLines = 4, lineSize = 1024)
   ) // 4KB data cache
 
-  L1InstructionCache.io.addr := DontCare
-  L1InstructionCache.io.writeEnable := false.B
-  L1InstructionCache.io.writeData := DontCare
+  L1ICache.io.addr := io.instrAddr
+  L1ICache.io.writeEnable := false.B
+  L1ICache.io.writeData := DontCare
 
-  L1DataCache.io.addr := DontCare
-  L1DataCache.io.writeEnable := false.B
-  L1DataCache.io.writeData := DontCare
+  L1DCache.io.addr := io.request.addr
+  L1DCache.io.writeEnable := io.request.writeEnable
+  L1DCache.io.writeData := io.request.writeData
+
+  val stall = !(L1ICache.io.hit && L1DCache.io.hit)
+  io.stall := stall
 
 }
