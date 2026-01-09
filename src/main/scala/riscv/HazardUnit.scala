@@ -1,6 +1,9 @@
 package riscv
 
 import chisel3._
+import riscv.HazardUnit.IdInfo
+import riscv.HazardUnit.ExInfo
+import riscv.HazardUnit.Out
 
 object HazardUnit {
   class IdInfo extends Bundle {
@@ -24,8 +27,6 @@ object HazardUnit {
 }
 
 class HazardUnit extends Module {
-  import HazardUnit._
-
   val io = IO(new Bundle {
     val id = Input(new IdInfo)
     val ex = Input(new ExInfo)
