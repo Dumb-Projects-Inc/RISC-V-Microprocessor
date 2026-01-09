@@ -7,41 +7,41 @@ class Pipeline {
   class IF_ID extends Bundle {
     val valid = Bool()
     val instr = UInt(32.W)
-    val pc    = UInt(32.W)
+    val pc = UInt(32.W)
   }
   class ID_EX extends Bundle {
-    val valid   = Bool()
-    val rs1     = UInt(5.W)
-    val rs2     = UInt(5.W)
-    val rd      = UInt(5.W)
-    val pc      = UInt(32.W)
-    val imm     = SInt(32.W)
+    val valid = Bool()
+    val rs1 = UInt(5.W)
+    val rs2 = UInt(5.W)
+    val rd = UInt(5.W)
+    val pc = UInt(32.W)
+    val imm = SInt(32.W)
     val control = new Bundle {
-      val ex    = new ControlSignals.EX
-      val mem   = new ControlSignals.MEM
-      val wb    = new ControlSignals.WB
+      val ex = new ControlSignals.EX
+      val mem = new ControlSignals.MEM
+      val wb = new ControlSignals.WB
     }
   }
   class EX_MEM extends Bundle {
-    val valid     = Bool()
-    val pc        = UInt(32.W)
-    val rd        = UInt(5.W)
+    val valid = Bool()
+    val pc = UInt(32.W)
+    val rd = UInt(5.W)
     val aluResult = UInt(32.W)
-    val imm       = SInt(32.W)
-    val memAddr   = UInt(32.W)
-    val control   = new Bundle {
-      val mem     = new ControlSignals.MEM
-      val wb      = new ControlSignals.WB
+    val imm = SInt(32.W)
+    val memAddr = UInt(32.W)
+    val control = new Bundle {
+      val mem = new ControlSignals.MEM
+      val wb = new ControlSignals.WB
     }
   }
   class MEM_WB extends Bundle {
-    val valid     = Bool()
-    val memOut    = UInt(32.W)
-    val pc        = UInt(32.W)
+    val valid = Bool()
+    val memOut = UInt(32.W)
+    val pc = UInt(32.W)
     val aluResult = UInt(32.W)
-    val imm       = SInt(32.W)
-    val control   = new Bundle {
-      val wb      = new ControlSignals.WB
+    val imm = SInt(32.W)
+    val control = new Bundle {
+      val wb = new ControlSignals.WB
     }
   }
 }
@@ -83,6 +83,12 @@ class RV32I extends Module {
   alu.io.b := aluInput2
   alu.io.op := decoder.io.aluOp
   val aluResult = alu.io.result.asUInt
+
+  val branchLogic = Module(new BranchLogic())
+  branchLogic.io.data1 := rd1.asSInt
+  branchLogic.io.data2 := rd2.asSInt
+  branchLogic.io.branchJump := BranchType.NO // Dummy
+  val pcSelect = branchLogic.io.pcSelect
   // MEM
   
   val temporaryMemoryOutput = 0x67.U
@@ -93,17 +99,14 @@ class RV32I extends Module {
 
   switch(decoder.io.writeSource) {
     is(WriteSource.ALU) {
+      regFile.io.writeReg.valid := decoder.io.writeEnable
+      regFile.io.writeReg.bits := decoder.io.rd
+
       regFile.io.writeData := aluResult
     }
     is(WriteSource.Memory) {
       regFile.io.writeData := temporaryMemoryOutput
     }
   }
-
-  val branchLogic = Module(new BranchLogic())
-  branchLogic.io.data1 := rd1.asSInt
-  branchLogic.io.data2 := rd2.asSInt
-  branchLogic.io.branchJump := BranchType.NO // Dummy
-  val pcSelect = branchLogic.io.pcSelect
 
 }
