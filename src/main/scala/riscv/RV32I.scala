@@ -84,8 +84,8 @@ class RV32I extends Module {
   alu.io.op := decoder.io.aluOp
   val aluResult = alu.io.result.asUInt
   // MEM
-
-  val temporaryMemoryOutput = 0x69.U
+  
+  val temporaryMemoryOutput = 0x67.U
 
   // WB
 
