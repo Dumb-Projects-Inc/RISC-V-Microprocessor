@@ -22,10 +22,9 @@ class Memory(depthWords: Int) extends Module {
   })
 
   val mem = SyncReadMem(depthWords, UInt(32.W))
-  val doRead  = io.fetch.req.fire
+  val doRead = io.fetch.req.fire
   val readIdx = io.fetch.req.bits.addr(31, 2)
   val readData = mem.read(readIdx, doRead)
-
 
   io.fetch.req.ready := true.B
 
