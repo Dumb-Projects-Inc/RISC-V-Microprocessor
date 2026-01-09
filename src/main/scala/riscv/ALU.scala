@@ -22,10 +22,10 @@ class ALU extends Module {
       io.result := io.a.asSInt << io.b(4, 0)
     }
     is(ALUOp.Slt) { // set less than
-      io.result := Mux(io.a.asSInt < io.b.asSInt, 1.U, 0.U)
+      io.result := Mux(io.a.asSInt < io.b.asSInt, 1.S, 0.S)
     }
     is(ALUOp.Sltu) { // set less than unsigned
-      io.result := Mux(io.a.asSInt < io.b.asSInt, 1.U, 0.U)
+      io.result := Mux(io.a.asSInt < io.b.asSInt, 1.S, 0.S)
     }
     is(ALUOp.Xor) { // bitwise xor
       io.result := io.a ^ io.b
