@@ -112,7 +112,7 @@ class RV32I(debug: Boolean = false) extends Module {
     }
   }
 
-  val dbg = if (debug) Some(IO(Output(Output(new RV32IDebug())))) else None
+  val dbg = if (debug) Some(IO(Output(new RV32IDebug()))) else None
   if (debug) {
     dbg.get.pc := pc
     dbg.get.ALUOut := aluResult
