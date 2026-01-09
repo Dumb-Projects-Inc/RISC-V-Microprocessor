@@ -3,7 +3,7 @@ package riscv
 import chisel3._
 import chisel3.util.{Valid}
 
-class RegisterFile extends Module {
+class RegisterFile(debug: Boolean = false) extends Module {
   val io = IO(new Bundle {
     val readReg1 = Input(UInt(5.W))
     val readReg2 = Input(UInt(5.W))
@@ -25,6 +25,16 @@ class RegisterFile extends Module {
 
   when(io.wrEn && (io.writeReg =/= 0.U)) {
     regFile.write(io.writeReg, io.writeData)
+  }
+
+  val dbg = if (debug) Some(IO(Output(Vec(32, UInt(32.W))))) else None
+
+  if (debug) {
+    val debugRegs = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+    when(io.wrEn && (io.writeReg =/= 0.U)) {
+      debugRegs(io.writeReg) := io.writeData
+    }
+    dbg.get := debugRegs
   }
 
 }

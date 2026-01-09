@@ -48,14 +48,19 @@ class Pipeline {
 
 class RV32ITop extends Module {
   val io = IO(new Bundle {})
-
   val cpu = Module(new RV32I())
 }
 
-class RV32I extends Module {
+class RV32IDebug extends Bundle {
+  val pc = UInt(32.W)
+  val registers = Vec(32, UInt(32.W))
+  val ALUOut = UInt(32.W)
+}
+
+class RV32I(debug: Boolean = false) extends Module {
   val pc = RegInit(0.U(32.W))
 
-  val regFile = Module(new RegisterFile())
+  val regFile = Module(new RegisterFile(debug))
   regFile.io.writeData := DontCare
 
   val rd1Val = regFile.io.reg1Data
@@ -105,6 +110,13 @@ class RV32I extends Module {
     is(WriteSource.Memory) {
       regFile.io.writeData := temporaryMemoryOutput
     }
+  }
+
+  val dbg = if (debug) Some(IO(Output(Output(new RV32IDebug())))) else None
+  if (debug) {
+    dbg.get.pc := pc
+    dbg.get.ALUOut := aluResult
+    dbg.get.registers := regFile.dbg.get
   }
 
 }

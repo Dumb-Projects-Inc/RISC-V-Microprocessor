@@ -12,10 +12,11 @@ import rvsim.VM
   */
 
 class E2ESpec extends AnyFunSpec with ChiselSim {
+
   describe("RISC-V Microprocessor E2E Tests") {
     it("should execute a simple program correctly") {
       // clock step through a simple program
-      simulate(new RV32I()) { dut =>
+      simulate(new RV32I(true)) { dut =>
         val path = Paths.get("src/test/resources/cae/bin/addneg.bin")
         val program =
           Files.readAllBytes(path)
@@ -26,7 +27,7 @@ class E2ESpec extends AnyFunSpec with ChiselSim {
         while (sim.step()) {
           val simRegs = sim.getRegisters()
           dut.clock.step()
-
+          print(dut.dbg.get.pc.peek())
           // Compare register file contents
 
         }
