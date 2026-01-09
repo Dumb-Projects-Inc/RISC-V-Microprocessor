@@ -95,12 +95,11 @@ class RV32I extends Module {
   // WB
 
   regFile.io.writeData := DontCare
+  regFile.io.wrEn := decoder.io.writeEnable
+  regFile.io.writeReg := decoder.io.rd
 
   switch(decoder.io.writeSource) {
     is(WriteSource.ALU) {
-      regFile.io.wrEn := decoder.io.writeEnable
-      regFile.io.writeReg := decoder.io.rd
-
       regFile.io.writeData := aluResult
     }
     is(WriteSource.Memory) {
