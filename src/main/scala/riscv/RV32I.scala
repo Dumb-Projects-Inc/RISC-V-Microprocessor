@@ -59,8 +59,8 @@ class RV32I extends Module {
   val regFile = Module(new RegisterFile())
   regFile.io.writeData := DontCare
 
-  val rd1Val = regFile.io.readData1
-  val rd2Val = regFile.io.readData2
+  val rd1Val = regFile.io.reg1Data
+  val rd2Val = regFile.io.reg2Data
 
   // IF
   val instr = 0x12300093.U(32.W) // Dummy instruction: addi x1, x0, 0x123
@@ -85,12 +85,12 @@ class RV32I extends Module {
   val aluResult = alu.io.result.asUInt
 
   val branchLogic = Module(new BranchLogic())
-  branchLogic.io.data1 := rd1.asSInt
-  branchLogic.io.data2 := rd2.asSInt
+  branchLogic.io.data1 := rd1Val.asSInt
+  branchLogic.io.data2 := rd2Val.asSInt
   branchLogic.io.branchJump := BranchType.NO // Dummy
   val pcSelect = branchLogic.io.pcSelect
   // MEM
-  
+
   val temporaryMemoryOutput = 0x67.U
 
   // WB
@@ -99,8 +99,8 @@ class RV32I extends Module {
 
   switch(decoder.io.writeSource) {
     is(WriteSource.ALU) {
-      regFile.io.writeReg.valid := decoder.io.writeEnable
-      regFile.io.writeReg.bits := decoder.io.rd
+      regFile.io.wrEn := decoder.io.writeEnable
+      regFile.io.writeReg := decoder.io.rd
 
       regFile.io.writeData := aluResult
     }
