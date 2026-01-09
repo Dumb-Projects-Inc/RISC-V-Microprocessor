@@ -53,7 +53,6 @@ class RV32ITop extends Module {
 }
 
 class RV32I extends Module {
-
   val pc = RegInit(0.U(32.W))
 
   val regFile = Module(new RegisterFile())
@@ -68,7 +67,7 @@ class RV32I extends Module {
 
   // ID
   val decoder = Module(new Decoder())
-  decoder.io.instr := RegNext(instr)
+  decoder.io.instr := instr
 
   regFile.io.readReg1 := decoder.io.rs1
   regFile.io.readReg2 := decoder.io.rs2
