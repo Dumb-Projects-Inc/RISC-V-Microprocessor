@@ -17,13 +17,16 @@ class RegisterFile(debug: Boolean = false) extends Module {
   // Yes this wastes 32 bits for x0, but simplifies logic
   val regFile = SyncReadMem(32, UInt(32.W))
 
-  val r1 = regFile.read(io.readReg1, true.B)
-  val r2 = regFile.read(io.readReg2, true.B)
+  val r1Data = regFile.read(io.readReg1, true.B)
+  val r2Data = regFile.read(io.readReg2, true.B)
 
-  io.reg1Data := Mux(io.readReg1 === 0.U, 0.U, r1)
-  io.reg2Data := Mux(io.readReg2 === 0.U, 0.U, r2)
+  val isZero1 = RegNext(io.readReg1 === 0.U)
+  val isZero2 = RegNext(io.readReg2 === 0.U)
 
-  when(io.wrEn && (io.writeReg =/= 0.U)) {
+  io.reg1Data := Mux(isZero1, 0.U, r1Data)
+  io.reg2Data := Mux(isZero2, 0.U, r2Data)
+
+  when(io.wrEn) {
     regFile.write(io.writeReg, io.writeData)
   }
 
