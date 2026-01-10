@@ -13,7 +13,8 @@ lazy val root = (project in file("."))
     name := "RISC-V-Microprocessor",
     libraryDependencies ++= Seq(
       "org.chipsalliance" %% "chisel" % chiselVersion,
-      "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+      "org.scalatest" %% "scalatest" % "3.2.19" % "test",
+      "com.carlosedp" %% "riscvassembler" % "1.10.0"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",

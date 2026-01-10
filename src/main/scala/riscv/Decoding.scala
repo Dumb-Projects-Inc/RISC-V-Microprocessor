@@ -19,6 +19,10 @@ object WriteSource extends ChiselEnum {
   val ALU, Memory = Value
 }
 
+object MemOp extends ChiselEnum {
+  val Noop, LoadWord, StoreWord = Value
+}
+
 object BranchType extends ChiselEnum {
   val BEQ, BNE, NO, J, BLT, BGE, BLTU, BGEU = Value
 }
@@ -34,7 +38,7 @@ object ControlSignals {
     val aluInput2 = ALUInput2()
   }
   class MEM extends Bundle {
-    // TODO:
+    val memOp = MemOp()
   }
   class WB extends Bundle {
     val writeEnable = Bool()

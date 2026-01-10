@@ -28,7 +28,7 @@ object Pipeline {
     val rd = UInt(5.W)
     val aluResult = UInt(32.W)
     val imm = SInt(32.W)
-    val memAddr = UInt(32.W)
+    val memData = UInt(32.W)
     val control = new Bundle {
       val mem = new ControlSignals.MEM
       val wb = new ControlSignals.WB
@@ -40,35 +40,44 @@ object Pipeline {
     val rd = UInt(5.W)
     val imm = SInt(32.W)
     val aluResult = UInt(32.W)
-    val memOut = UInt(32.W)
+    // val memOut = UInt(32.W) // Also not included because of one cycle read delay
     val control = new Bundle {
       val wb = new ControlSignals.WB
     }
   }
 }
 
-class RV32ITop extends Module {
-  val io = IO(new Bundle {})
-  val cpu = Module(new RV32I())
-}
+class Pipeline(debug: Boolean = false) extends Module {
+  val io = IO(new Bundle {
+    val instrPort = new Bundle {
+      val addr = Output(UInt(32.W))
+      val instr = Input(UInt(32.W))
+      val enable = Output(Bool())
+    }
+    val dataPort = new Bundle {
+      val addr = Output(UInt(32.W))
+      val dataRead = Input(UInt(32.W))
+      val dataWrite = Output(UInt(32.W))
+      val writeEn = Output(Bool())
+      val enable = Output(Bool())
+    }
+  })
 
-class RV32IDebug extends Bundle {
-  val pc = UInt(32.W)
-  val registers = Vec(32, UInt(32.W))
-  val ALUOut = UInt(32.W)
-}
-
-class RV32I(debug: Boolean = false) extends Module {
-  // TODO: Implement two interfaces for instruction cache and data cache
   val pc = RegInit(0.U(32.W))
+  pc := pc + 4.U
+  io.instrPort.addr := pc
+  io.instrPort.enable := true.B
 
   val regFile = Module(new RegisterFile(debug))
 
+  if (debug) {
+    regFile.dbg match {
+      case Some(data) => dontTouch(data)
+      case None       =>
+    }
+  }
+
   // IF
-  // Dummy instruction: addi x1, x0, 0x123
-  // Instruction should come from IO
-  val instr = 0x12300093.U(32.W)
-  pc := pc + 4.U
 
   val IF_ID = RegInit({
     val bundle = Wire(new Pipeline.IF_ID())
@@ -82,8 +91,8 @@ class RV32I(debug: Boolean = false) extends Module {
   }
 
   IF_ID.valid := true.B // Valid is initialized to false, set to true on next clockcycle. Valid signal cascades to next cycle
-  IF_ID.instr := instr
-  IF_ID.pc := pc
+  IF_ID.instr := io.instrPort.instr
+  IF_ID.pc := RegNext(pc)
 
   // ID
   val decoder = Module(new Decoder())
@@ -158,14 +167,12 @@ class RV32I(debug: Boolean = false) extends Module {
   EX_MEM.imm := ID_EX.imm
 
   EX_MEM.aluResult := aluResult
-  EX_MEM.memAddr := DontCare // TODO
+  EX_MEM.memData := regFile.io.reg2Data
 
   EX_MEM.control.mem := ID_EX.control.mem
   EX_MEM.control.wb := ID_EX.control.wb
 
   // MEM
-
-  val temporaryMemoryOutput = 0x67.U
 
   val MEM_WB = RegInit({
     val bundle = Wire(new Pipeline.MEM_WB())
@@ -178,13 +185,16 @@ class RV32I(debug: Boolean = false) extends Module {
     dontTouch(MEM_WB)
   }
 
+  io.dataPort.addr := EX_MEM.aluResult
+  io.dataPort.dataWrite := EX_MEM.memData
+  io.dataPort.enable := true.B
+  io.dataPort.writeEn := (EX_MEM.control.mem.memOp =/= MemOp.Noop) && EX_MEM.valid
+
   MEM_WB.valid := EX_MEM.valid
   MEM_WB.pc := EX_MEM.pc
   MEM_WB.rd := EX_MEM.rd
   MEM_WB.imm := EX_MEM.imm
   MEM_WB.aluResult := EX_MEM.aluResult
-
-  MEM_WB.memOut := temporaryMemoryOutput
 
   MEM_WB.control.wb := EX_MEM.control.wb
 
@@ -198,15 +208,7 @@ class RV32I(debug: Boolean = false) extends Module {
       regFile.io.writeData := MEM_WB.aluResult
     }
     is(WriteSource.Memory) {
-      regFile.io.writeData := MEM_WB.memOut
+      regFile.io.writeData := io.dataPort.dataRead
     }
   }
-
-  val dbg = if (debug) Some(IO(Output(new RV32IDebug()))) else None
-  if (debug) {
-    dbg.get.pc := pc
-    dbg.get.ALUOut := aluResult
-    dbg.get.registers := regFile.dbg.get
-  }
-
 }
