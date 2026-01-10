@@ -12,7 +12,7 @@
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
     overlays.default = final: prev: let
-      jdk = prev.jdk25_headless;
+      jdk = prev.jdk21_headless;
     in {
       sbt = prev.sbt.override {jre = jdk;};
     };
@@ -32,7 +32,7 @@
               verilator
               circt
               python3
-              jdk25_headless
+              jdk21_headless
               metals
             ]
             ++ [crossCompilation.gcc crossCompilation.binutils];
