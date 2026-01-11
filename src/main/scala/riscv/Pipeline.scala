@@ -126,6 +126,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     IF_ID.valid := false.B
     IF_ID.instr := 0.U
     IF_ID.pc := 0.U
+  }.elsewhen(hazardUnit.io.out.stallIFID) {
+    IF_ID := IF_ID
   }.otherwise {
     IF_ID.valid := true.B
     IF_ID.instr := io.instrPort.instr
