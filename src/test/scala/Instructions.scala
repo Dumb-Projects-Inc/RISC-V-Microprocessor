@@ -192,6 +192,117 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(1).expect(0x12345000.U)
       }
     }
+    it("should handle function calls (JAL + JALR)") {
+      val input =
+        """
+        addi x5, x0, 10    // Init x5 = 10
+        jal x1, func       // Jump to func, x1 = PC+4
+        addi x5, x5, 1     // This should run AFTER return (x5 = 20 + 1 = 21)
+        jal x0, end        // Jump to end
+        func:
+        addi x5, x5, 10    // x5 = 20
+        jalr x0, x1, 0     // Return to address in x1
+        end:
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(20)
+
+        dut.io.dbg(5).expect(21.U)
+      }
+    }
+
+    it("should verify pipeline flush on JAL") {
+      // Use a distinct pattern to detect flush failure immediately
+      val input =
+        """
+        addi x1, x0, 1
+        jal x0, skip       // Jump to skip
+        addi x1, x1, 100   // This should be FLUSHED and never execute
+        skip:
+        addi x1, x1, 1     // Target
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+        dut.clock.step(10)
+
+        // If x1 is 102, the flush failed. Correct is 2.
+        dut.io.dbg(1).expect(2.U)
+      }
+    }
+
+    it("should handle negative memory offsets (LW/SW)") {
+      val input =
+        """
+        addi x1, x0, 100   // Base address = 100
+        addi x2, x0, 0xAA  // Pattern 1
+        addi x3, x0, 0xBB  // Pattern 2
+        
+        sw x2, 4(x1)       // Store 0xAA at 104
+        sw x3, -4(x1)      // Store 0xBB at 96
+        
+        lw x4, 4(x1)       // Load from 104
+        lw x5, -4(x1)      // Load from 96
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(20)
+
+        dut.io.dbg(4).expect(0xaa.U)
+        dut.io.dbg(5).expect(0xbb.U)
+      }
+    }
+
+    it("should construct large values using LUI and ADDI") {
+      val input =
+        """
+        lui x1, 0x12345      // x1 = 0x12345000
+        addi x1, x1, 0x678   // x1 = 0x12345678
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(10)
+
+        dut.io.dbg(1).expect(0x12345678.U)
+      }
+    }
+
+    it("should handle not-taken branches correctly") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x2, x0, 20
+        beq x1, x2, skip    // Should NOT take branch (10 != 20)
+        addi x3, x0, 5      // Should execute
+        jal x0, end
+        skip:
+        addi x3, x0, 99     // Should NOT execute
+        end:
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(15)
+
+        dut.io.dbg(3).expect(5.U)
+      }
+    }
+
   }
   describe("Pipeline Hazards & Forwarding") {
     it("should handle EX->EX forwarding (Back-to-back dependency)") {
