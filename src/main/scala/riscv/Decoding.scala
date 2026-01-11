@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 
 object ALUInput1 extends ChiselEnum {
-  val Rs1, Pc = Value
+  val Rs1, Pc, Zero = Value
 }
 
 object ALUInput2 extends ChiselEnum {
@@ -130,6 +130,14 @@ class Decoder extends Module {
     io.control.wb.writeEnable := true.B
     io.control.wb.writeSource := WriteSource.ALU
     format := Format.R
+  }
+  when(io.instr === Instruction.LUI) {
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Zero // actually 0
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.wb.writeEnable := true.B
+    io.control.wb.writeSource := WriteSource.ALU
+    format := Format.U
   }
   when(io.instr === Instruction.LW) {
     io.control.ex.aluOp := ALUOp.Add

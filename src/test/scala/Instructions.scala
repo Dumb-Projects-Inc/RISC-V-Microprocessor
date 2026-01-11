@@ -11,10 +11,12 @@ import org.scalatest.funspec.AnyFunSpec
 class TestTop(instr: String) extends Module {
   val io = IO(new Bundle {
     val dbg = Output(Vec(32, UInt(32.W)))
+    val pc = Output(UInt(32.W))
   })
 
   val pipeline = Module(new Pipeline(debug = true, debugPrint = true))
-  io.dbg := pipeline.dbg.get
+  io.dbg := pipeline.dbg.get.regs
+  io.pc := pipeline.dbg.get.pc
   val program = SyncReadMem(1024, UInt(32.W))
 
   val hex = RISCVAssembler.fromString(instr.stripMargin)
@@ -22,7 +24,7 @@ class TestTop(instr: String) extends Module {
   val tempFile = os.temp(suffix = ".hex")
   os.write.over(tempFile, hex)
   loadMemoryFromFile(program, tempFile.toString)
-
+  pipeline.io.instrPort.stall := false.B
   pipeline.io.instrPort.instr := program.read(
     pipeline.io.instrPort.addr(31, 2),
     pipeline.io.instrPort.enable
@@ -38,6 +40,7 @@ class TestTop(instr: String) extends Module {
   when(pipeline.io.dataPort.writeEn) {
     dmem.write(dmemAddr, pipeline.io.dataPort.dataWrite)
   }
+  pipeline.io.dataPort.stall := false.B
 }
 
 class Instructions extends AnyFunSpec with ChiselSim {
@@ -143,6 +146,51 @@ class Instructions extends AnyFunSpec with ChiselSim {
 
         dut.io.dbg(1).expect(5.U)
         dut.io.dbg(3).expect(100.U)
+        dut.io.dbg(1).expect(1.U)
+      }
+    }
+    it("should jump correctly") {
+      val input =
+        """    
+       addi x1, x0, 1
+       jal x0, 32
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x1, x1, 1
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(15)
+
+        dut.io.dbg(1).expect(1.U)
+      }
+    }
+    it("should work with LUI") {
+      val input =
+        """    
+       lui x1, 0x12345
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(10)
+
+        dut.io.dbg(1).expect(0x12345000.U)
       }
     }
   }

@@ -47,24 +47,35 @@ object Pipeline {
   }
 }
 
+class instrPort extends Bundle {
+  val addr = Output(UInt(32.W))
+  val instr = Input(UInt(32.W))
+  val enable = Output(Bool())
+  val stall = Input(Bool())
+}
+
+class dataPort extends Bundle {
+  val addr = Output(UInt(32.W))
+  val dataRead = Input(UInt(32.W))
+  val dataWrite = Output(UInt(32.W))
+  val writeEn = Output(Bool())
+  val enable = Output(Bool())
+  val stall = Input(Bool())
+}
+
+class Debug extends Bundle {
+  val pc = UInt(32.W)
+  val regs = Vec(32, UInt(32.W))
+}
+
 class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     extends Module {
   val io = IO(new Bundle {
-    val instrPort = new Bundle {
-      val addr = Output(UInt(32.W))
-      val instr = Input(UInt(32.W))
-      val enable = Output(Bool())
-    }
-    val dataPort = new Bundle {
-      val addr = Output(UInt(32.W))
-      val dataRead = Input(UInt(32.W))
-      val dataWrite = Output(UInt(32.W))
-      val writeEn = Output(Bool())
-      val enable = Output(Bool())
-    }
+    val instrPort = new instrPort()
+    val dataPort = new dataPort()
   })
 
-  val dbg = if (debug) Some(IO(Output(Vec(32, UInt(32.W))))) else None
+  val dbg = if (debug) Some(IO(Output(new Debug()))) else None
 
   val hazardUnit = Module(new HazardUnit())
   val branchLogic = Module(new BranchLogic())
@@ -86,7 +97,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val regFile = Module(new RegisterFile(debug))
 
   if (debug) {
-    dbg.get := regFile.dbg.get
+    dbg.get.regs := regFile.dbg.get
+    dbg.get.pc := pc
   }
   if (debugPrint) {
     printf("PC: %x\n", pc)
@@ -160,10 +172,12 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   // EX
   val aluInput1 =
-    Mux(
-      ID_EX.control.ex.aluInput1 === ALUInput1.Rs1,
-      regFile.io.reg1Data.asSInt, // We dont read from pipeline register here, since reg reads are naturally behind by one clk
-      ID_EX.pc.asSInt
+    MuxLookup(ID_EX.control.ex.aluInput1, 0.S)(
+      Seq(
+        ALUInput1.Rs1 -> regFile.io.reg1Data.asSInt, // We dont read from pipeline register here, since reg reads are naturally behind by one clk
+        ALUInput1.Pc -> ID_EX.pc.asSInt,
+        ALUInput1.Zero -> 0.S
+      )
     )
   val aluInput2 =
     Mux(
@@ -175,12 +189,11 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   alu.io.b := aluInput2
   alu.io.op := ID_EX.control.ex.aluOp
 
+  hazardUnit.io.ex.rd := ID_EX.rd
+  hazardUnit.io.ex.isLoad := ID_EX.control.mem.memOp === MemOp.Load
   branchLogic.io.data1 := regFile.io.reg1Data.asSInt
   branchLogic.io.data2 := regFile.io.reg2Data.asSInt
   branchLogic.io.branchType := ID_EX.control.ex.branchType
-
-  hazardUnit.io.ex.rd := ID_EX.rd
-  hazardUnit.io.ex.isLoad := ID_EX.control.mem.memOp === MemOp.Load
 
   val EX_MEM = RegInit({
     val bundle = Wire(new Pipeline.EX_MEM())
