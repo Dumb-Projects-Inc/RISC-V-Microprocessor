@@ -44,7 +44,7 @@ class TestTop(instr: String) extends Module {
 }
 
 class Instructions extends AnyFunSpec with ChiselSim {
-  describe("Instructions") {
+  describe("Basic instructions") {
     it("should correctly load and store words") {
       val input =
         """
@@ -190,6 +190,95 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.clock.step(10)
 
         dut.io.dbg(1).expect(0x12345000.U)
+      }
+    }
+  }
+  describe("Pipeline Hazards & Forwarding") {
+    it("should handle EX->EX forwarding (Back-to-back dependency)") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x2, x1, 5   // Depends on x1 immediately
+        addi x3, x0, 0   // Buffer
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+        dut.clock.step(10)
+        dut.io.dbg(1).expect(10.U)
+        dut.io.dbg(2).expect(15.U) // 10 + 5
+      }
+    }
+
+    it("should handle MEM->EX forwarding (1-cycle gap)") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x3, x0, 0   // NOP
+        addi x2, x1, 5   // Depends on x1 (now in WB)
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+        dut.clock.step(10)
+        dut.io.dbg(2).expect(15.U)
+      }
+    }
+
+    it("should stall on Load-Use Hazard") {
+      val input =
+        """
+        addi x5, x0, 20
+        sw   x5, 4(x0)   // Store 20 at address 4
+        lw   x1, 4(x0)   // Load 20 into x1
+        addi x2, x1, 10  // Use x1 immediately (Should be 30)
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+        dut.clock.step(20) // Give extra time for the stall
+        dut.io.dbg(1).expect(20.U)
+        dut.io.dbg(2).expect(30.U)
+      }
+    }
+
+    it("should flush pipeline on taken Branch") {
+      val input =
+        """
+        addi x1, x0, 5
+        addi x2, x0, 5
+        beq  x1, x2, target  // Taken
+        addi x3, x0, 100     // Should be flushed!
+        addi x3, x0, 200     // Should be flushed!
+        target:
+        addi x4, x0, 15
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+        dut.clock.step(20)
+        dut.io.dbg(3).expect(0.U) // x3 should remain 0
+        dut.io.dbg(4).expect(15.U)
+      }
+    }
+
+    it("should correctly handle Store-to-Load forwarding via memory") {
+      val input =
+        """
+         addi x1, x0, 42
+         sw   x1, 0(x0)
+         lw   x2, 0(x0)
+         """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+        dut.clock.step(15)
+        dut.io.dbg(2).expect(42.U)
       }
     }
   }

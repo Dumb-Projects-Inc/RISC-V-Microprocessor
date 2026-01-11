@@ -11,8 +11,8 @@ object Pipeline {
   }
   class ID_EX extends Bundle {
     val valid = Bool()
-    // val rs1 = UInt(5.W) // Not implemented in bundle, since register file is already delayed by one cycle
-    // val rs2 = UInt(5.W)
+    val rs1 = UInt(5.W)
+    val rs2 = UInt(5.W)
     val rd = UInt(5.W)
     val pc = UInt(32.W)
     val imm = SInt(32.W)
@@ -79,6 +79,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   val hazardUnit = Module(new HazardUnit())
   val branchLogic = Module(new BranchLogic())
+  val forwardingUnit = Module(new ForwardingUnit())
   hazardUnit.io.exRedirect := branchLogic.io.takeBranch
   val alu = Module(new ALU())
   val aluResult = alu.io.result.asUInt
@@ -156,6 +157,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   ID_EX.pc := IF_ID.pc
   ID_EX.valid := IF_ID.valid
+  ID_EX.rs1 := decoder.io.rs1
+  ID_EX.rs2 := decoder.io.rs2
 
   when(hazardUnit.io.out.flushIDEX) {
     ID_EX.valid := false.B
@@ -171,36 +174,98 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   ID_EX.control.wb := decoder.io.control.wb
 
   // EX
-  val aluInput1 =
-    MuxLookup(ID_EX.control.ex.aluInput1, 0.S)(
-      Seq(
-        ALUInput1.Rs1 -> regFile.io.reg1Data.asSInt, // We dont read from pipeline register here, since reg reads are naturally behind by one clk
-        ALUInput1.Pc -> ID_EX.pc.asSInt,
-        ALUInput1.Zero -> 0.S
-      )
-    )
-  val aluInput2 =
-    Mux(
-      ID_EX.control.ex.aluInput2 === ALUInput2.Rs2,
-      regFile.io.reg2Data.asSInt, // Above comment also applies here
-      ID_EX.imm
-    )
-  alu.io.a := aluInput1
-  alu.io.b := aluInput2
-  alu.io.op := ID_EX.control.ex.aluOp
-
-  hazardUnit.io.ex.rd := ID_EX.rd
-  hazardUnit.io.ex.isLoad := ID_EX.control.mem.memOp === MemOp.Load
-  branchLogic.io.data1 := regFile.io.reg1Data.asSInt
-  branchLogic.io.data2 := regFile.io.reg2Data.asSInt
-  branchLogic.io.branchType := ID_EX.control.ex.branchType
-
   val EX_MEM = RegInit({
     val bundle = Wire(new Pipeline.EX_MEM())
     bundle := DontCare
     bundle.valid := false.B
     bundle
   })
+
+  val MEM_WB = RegInit({
+    val bundle = Wire(new Pipeline.MEM_WB())
+    bundle := DontCare
+    bundle.valid := false.B
+    bundle
+  })
+
+  forwardingUnit.io.dec.rs1 := ID_EX.rs1
+  forwardingUnit.io.dec.rs2 := ID_EX.rs2
+
+  forwardingUnit.io.dec.uses.aluRs1 := ID_EX.control.ex.aluInput1 === ALUInput1.Rs1
+  forwardingUnit.io.dec.uses.aluRs2 := ID_EX.control.ex.aluInput2 === ALUInput2.Rs2
+  val isBranch =
+    ID_EX.control.ex.branchType =/= BranchType.NO && ID_EX.control.ex.branchType =/= BranchType.J
+  forwardingUnit.io.dec.uses.bjRs1 := isBranch
+  forwardingUnit.io.dec.uses.bjRs2 := isBranch
+  forwardingUnit.io.dec.uses.storeDataRs2 := ID_EX.control.mem.memOp === MemOp.Store
+  forwardingUnit.io.dec.uses.idRs1 := false.B
+  forwardingUnit.io.dec.uses.idRs2 := false.B
+  forwardingUnit.io.exe.rd := EX_MEM.rd
+  forwardingUnit.io.exe.regWrite := EX_MEM.control.wb.writeEnable
+  forwardingUnit.io.exe.isLoad := EX_MEM.control.mem.memOp === MemOp.Load
+  forwardingUnit.io.mem.rd := MEM_WB.rd
+  forwardingUnit.io.mem.regWrite := MEM_WB.control.wb.writeEnable
+  forwardingUnit.io.mem.isLoad := false.B
+  forwardingUnit.io.wb := DontCare
+  forwardingUnit.io.wb.regWrite := false.B
+
+  val forwardedR1 =
+    MuxLookup(forwardingUnit.io.sel.data1ALUSel, regFile.io.reg1Data.asSInt)(
+      Seq(
+        ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
+        ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt
+      )
+    )
+
+  val aluInput1 =
+    MuxLookup(ID_EX.control.ex.aluInput1, 0.S)(
+      Seq(
+        ALUInput1.Rs1 -> forwardedR1, // We dont read from pipeline register here, since reg reads are naturally behind by one clk
+        ALUInput1.Pc -> ID_EX.pc.asSInt
+      )
+    )
+
+  val forwardedR2 =
+    MuxLookup(forwardingUnit.io.sel.data2ALUSel, regFile.io.reg2Data.asSInt)(
+      Seq(
+        ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
+        ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt
+      )
+    )
+
+  val aluInput2 =
+    MuxLookup(ID_EX.control.ex.aluInput2, 0.S)(
+      Seq(
+        ALUInput2.Rs2 -> forwardedR2,
+        ALUInput2.Imm -> ID_EX.imm
+      )
+    )
+
+  alu.io.a := aluInput1
+  alu.io.b := aluInput2
+  alu.io.op := ID_EX.control.ex.aluOp
+
+  hazardUnit.io.ex.rd := ID_EX.rd
+  hazardUnit.io.ex.isLoad := ID_EX.control.mem.memOp === MemOp.Load
+  branchLogic.io.data1 := MuxLookup(
+    forwardingUnit.io.sel.data1BJSel,
+    regFile.io.reg1Data.asSInt
+  )(
+    Seq(
+      ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
+      ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt // Forward the data being written back
+    )
+  )
+  branchLogic.io.data2 := MuxLookup(
+    forwardingUnit.io.sel.data2BJSel,
+    regFile.io.reg2Data.asSInt
+  )(
+    Seq(
+      ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
+      ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt // Forward the data being written back
+    )
+  )
+  branchLogic.io.branchType := ID_EX.control.ex.branchType
 
   if (debug) {
     dontTouch(EX_MEM)
@@ -212,19 +277,21 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   EX_MEM.imm := ID_EX.imm
 
   EX_MEM.aluResult := aluResult
-  EX_MEM.memData := regFile.io.reg2Data
+
+  val storeData =
+    MuxLookup(forwardingUnit.io.sel.dataMemSel, regFile.io.reg2Data)(
+      Seq(
+        ForwardingUnit.Sel.exe -> EX_MEM.aluResult,
+        ForwardingUnit.Sel.mem -> regFile.io.writeData
+      )
+    )
+
+  EX_MEM.memData := storeData
 
   EX_MEM.control.mem := ID_EX.control.mem
   EX_MEM.control.wb := ID_EX.control.wb
 
   // MEM
-
-  val MEM_WB = RegInit({
-    val bundle = Wire(new Pipeline.MEM_WB())
-    bundle := DontCare
-    bundle.valid := false.B
-    bundle
-  })
 
   if (debug) {
     dontTouch(MEM_WB)
