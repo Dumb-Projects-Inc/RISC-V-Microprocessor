@@ -146,7 +146,6 @@ class Instructions extends AnyFunSpec with ChiselSim {
 
         dut.io.dbg(1).expect(5.U)
         dut.io.dbg(3).expect(100.U)
-        dut.io.dbg(1).expect(1.U)
       }
     }
     it("should jump correctly") {
