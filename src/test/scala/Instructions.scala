@@ -14,7 +14,7 @@ class TestTop(instr: String) extends Module {
     val pc = Output(UInt(32.W))
   })
 
-  val pipeline = Module(new Pipeline(debug = true, debugPrint = true))
+  val pipeline = Module(new Pipeline(debug = true, debugPrint = false))
   io.dbg := pipeline.dbg.get.regs
   io.pc := pipeline.dbg.get.pc
   val program = SyncReadMem(1024, UInt(32.W))
@@ -216,23 +216,23 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
-    it("should verify pipeline flush on JAL") {
-      // Use a distinct pattern to detect flush failure immediately
+    it("should flush pipeline on branch") {
       val input =
         """
-        addi x1, x0, 1
-        jal x0, skip       // Jump to skip
-        addi x1, x1, 100   // This should be FLUSHED and never execute
-        skip:
-        addi x1, x1, 1     // Target
+          addi x1, x0, 1
+          beq x0,x0, skip
+          addi x1, x1, 100
+          addi x1, x1, 100
+          addi x1, x1, 100
+          skip:
+          addi x1, x1, 1
         """
       simulate(new TestTop(input)) { dut =>
         dut.reset.poke(true.B)
         dut.clock.step(1)
         dut.reset.poke(false.B)
-        dut.clock.step(10)
+        dut.clock.step(20)
 
-        // If x1 is 102, the flush failed. Correct is 2.
         dut.io.dbg(1).expect(2.U)
       }
     }
