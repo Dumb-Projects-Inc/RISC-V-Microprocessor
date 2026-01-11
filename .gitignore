@@ -5,3 +5,5 @@ build/
 .metals/
 .vscode/
 .bsp/
+vivado_project/
+generated/
