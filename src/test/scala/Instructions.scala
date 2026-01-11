@@ -115,7 +115,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.clock.step(1)
         dut.reset.poke(false.B)
 
-        dut.clock.step(10)
+        dut.clock.step(20)
 
         dut.io.dbg(3).expect(1.U)
       }

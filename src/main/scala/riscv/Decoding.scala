@@ -172,7 +172,15 @@ class Decoder extends Module {
   when(io.instr === Instruction.BEQ) {
     io.control.ex.aluInput1 := ALUInput1.Pc
     io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.ex.aluOp := ALUOp.Add
     io.control.ex.branchType := BranchType.BEQ
+    format := Format.B
+  }
+  when(io.instr === Instruction.BNE) {
+    io.control.ex.aluInput1 := ALUInput1.Pc
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.branchType := BranchType.BNE
     format := Format.B
   }
 
