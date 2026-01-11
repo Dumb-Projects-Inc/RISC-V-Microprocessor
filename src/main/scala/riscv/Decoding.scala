@@ -16,11 +16,15 @@ object ALUOp extends ChiselEnum {
 }
 
 object WriteSource extends ChiselEnum {
-  val ALU, Memory = Value
+  val ALU, Memory, Pc = Value
 }
 
 object MemOp extends ChiselEnum {
-  val Noop, LoadWord, StoreWord = Value
+  val Noop, Store, Load = Value
+}
+
+object MemSize extends ChiselEnum {
+  val Word, HalfWord, Byte = Value
 }
 
 object BranchType extends ChiselEnum {
@@ -39,6 +43,7 @@ object ControlSignals {
   }
   class MEM extends Bundle {
     val memOp = MemOp()
+    val memSize = MemSize()
   }
   class WB extends Bundle {
     val writeEnable = Bool()
@@ -53,13 +58,13 @@ class Decoder extends Module {
     val rd = Output(UInt(5.W))
     val rs1 = Output(UInt(5.W))
     val rs2 = Output(UInt(5.W))
-    val aluOp = Output(ALUOp())
-    val aluInput1 = Output(ALUInput1())
-    val aluInput2 = Output(ALUInput2())
-    val writeSource = Output(WriteSource())
-    val writeEnable = Output(Bool())
-    val branchType = Output(BranchType())
     val imm = Output(SInt(32.W))
+    val control = new Bundle {
+      val ex = Output(new ControlSignals.EX())
+      val mem = Output(new ControlSignals.MEM())
+      val wb = Output(new ControlSignals.WB())
+    }
+    val branchType = Output(BranchType())
   })
 
   // val opcode = io.instr(6, 0)
@@ -70,11 +75,10 @@ class Decoder extends Module {
   io.rs1 := io.instr(19, 15)
   io.rs2 := io.instr(24, 20)
 
-  io.aluOp := DontCare
-  io.aluInput1 := DontCare
-  io.aluInput2 := DontCare
-  io.writeSource := DontCare
-  io.writeEnable := DontCare
+  io.control.ex := DontCare
+  io.control.mem := DontCare
+  io.control.mem.memOp := MemOp.Noop
+  io.control.wb := DontCare
   io.branchType := BranchType.NO
 
   val format = Wire(Format())
@@ -85,38 +89,56 @@ class Decoder extends Module {
   io.imm := immGen.io.out
 
   when(io.instr === Instruction.ADDI) {
-    io.aluOp := ALUOp.Add
-    io.aluInput1 := ALUInput1.Rs1
-    io.aluInput2 := ALUInput2.Imm
-    io.writeSource := WriteSource.ALU
-    io.writeEnable := true.B
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Rs1
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.wb.writeEnable := true.B
+    io.control.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.ADD) {
-    io.aluOp := ALUOp.Add
-    io.aluInput1 := ALUInput1.Rs1
-    io.aluInput2 := ALUInput2.Rs2
-    io.writeSource := WriteSource.ALU
-    io.writeEnable := true.B
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Rs1
+    io.control.ex.aluInput2 := ALUInput2.Rs2
+    io.control.wb.writeEnable := true.B
+    io.control.wb.writeSource := WriteSource.ALU
     format := Format.R
+  }
+  when(io.instr === Instruction.LW) {
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Rs1
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.wb.writeEnable := true.B
+    io.control.wb.writeSource := WriteSource.Memory
+    io.control.mem.memOp := MemOp.Load
+    io.control.mem.memSize := MemSize.Word
+    format := Format.I
+  }
+  when(io.instr === Instruction.SW) {
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Rs1
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.mem.memOp := MemOp.Store
+    io.control.mem.memSize := MemSize.Word
+    format := Format.S
   }
 
   // Branches
   when(io.instr === Instruction.JAL) {
-    io.aluOp := ALUOp.Add
-    io.aluInput1 := ALUInput1.Pc
-    io.aluInput2 := ALUInput2.Imm
-    io.writeSource := WriteSource.ALU
-    io.writeEnable := true.B
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Pc
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.wb.writeSource := WriteSource.Pc
+    io.control.wb.writeEnable := true.B
     format := Format.J
     io.branchType := BranchType.J
   }
   when(io.instr === Instruction.JALR) {
-    io.aluOp := ALUOp.Add
-    io.aluInput1 := ALUInput1.Rs1
-    io.aluInput2 := ALUInput2.Imm
-    io.writeSource := WriteSource.ALU
-    io.writeEnable := true.B
+    io.control.ex.aluOp := ALUOp.Add
+    io.control.ex.aluInput1 := ALUInput1.Rs1
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.wb.writeSource := WriteSource.Pc
+    io.control.wb.writeEnable := true.B
     format := Format.I
     io.branchType := BranchType.J
   }

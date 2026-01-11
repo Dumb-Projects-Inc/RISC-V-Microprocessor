@@ -47,7 +47,8 @@ object Pipeline {
   }
 }
 
-class Pipeline(debug: Boolean = false) extends Module {
+class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
+    extends Module {
   val io = IO(new Bundle {
     val instrPort = new Bundle {
       val addr = Output(UInt(32.W))
@@ -63,6 +64,8 @@ class Pipeline(debug: Boolean = false) extends Module {
     }
   })
 
+  val dbg = if (debug) Some(IO(Output(Vec(32, UInt(32.W))))) else None
+
   val pc = RegInit(0.U(32.W))
   pc := pc + 4.U
   io.instrPort.addr := pc
@@ -71,9 +74,13 @@ class Pipeline(debug: Boolean = false) extends Module {
   val regFile = Module(new RegisterFile(debug))
 
   if (debug) {
-    regFile.dbg match {
-      case Some(data) => dontTouch(data)
-      case None       =>
+    dbg.get := regFile.dbg.get
+  }
+  if (debugPrint) {
+    printf("PC: %x\n", pc)
+    for (i <- 0 until 32) {
+      printf("x%d: %x ", i.U, regFile.dbg.get(i))
+      if ((i + 1) % 8 == 0) printf("\n")
     }
   }
 
@@ -117,12 +124,10 @@ class Pipeline(debug: Boolean = false) extends Module {
 
   ID_EX.imm := decoder.io.imm
   ID_EX.rd := decoder.io.rd
-  ID_EX.control.ex.aluInput1 := decoder.io.aluInput1
-  ID_EX.control.ex.aluInput2 := decoder.io.aluInput2
-  ID_EX.control.ex.aluOp := decoder.io.aluOp
-  ID_EX.control.mem := DontCare // TODO: Not implemented
-  ID_EX.control.wb.writeEnable := decoder.io.writeEnable
-  ID_EX.control.wb.writeSource := decoder.io.writeSource
+
+  ID_EX.control.ex := decoder.io.control.ex
+  ID_EX.control.mem := decoder.io.control.mem
+  ID_EX.control.wb := decoder.io.control.wb
 
   // EX
   val alu = Module(new ALU())
@@ -187,8 +192,8 @@ class Pipeline(debug: Boolean = false) extends Module {
 
   io.dataPort.addr := EX_MEM.aluResult
   io.dataPort.dataWrite := EX_MEM.memData
-  io.dataPort.enable := true.B
-  io.dataPort.writeEn := (EX_MEM.control.mem.memOp =/= MemOp.Noop) && EX_MEM.valid
+  io.dataPort.enable := EX_MEM.control.mem.memOp =/= MemOp.Noop
+  io.dataPort.writeEn := (EX_MEM.control.mem.memOp === MemOp.Store) && EX_MEM.valid
 
   MEM_WB.valid := EX_MEM.valid
   MEM_WB.pc := EX_MEM.pc
