@@ -7,35 +7,35 @@ class BranchLogic extends Module {
   val io = IO(new Bundle {
     val data1 = Input(SInt(32.W))
     val data2 = Input(SInt(32.W))
-    val branchJump = Input(BranchType())
-    val pcSelect = Output(Bool())
+    val branchType = Input(BranchType())
+    val takeBranch = Output(Bool())
   })
 
-  io.pcSelect := false.B
-  switch(io.branchJump) {
+  io.takeBranch := false.B
+  switch(io.branchType) {
     is(BranchType.J) {
-      io.pcSelect := true.B
+      io.takeBranch := true.B
     }
     is(BranchType.NO) {
-      io.pcSelect := false.B
+      io.takeBranch := false.B
     }
     is(BranchType.BEQ) {
-      io.pcSelect := (io.data1 === io.data2)
+      io.takeBranch := (io.data1 === io.data2)
     }
     is(BranchType.BNE) {
-      io.pcSelect := (io.data1 =/= io.data2)
+      io.takeBranch := (io.data1 =/= io.data2)
     }
     is(BranchType.BLT) {
-      io.pcSelect := (io.data1 < io.data2)
+      io.takeBranch := (io.data1 < io.data2)
     }
     is(BranchType.BGE) {
-      io.pcSelect := (io.data1 >= io.data2)
+      io.takeBranch := (io.data1 >= io.data2)
     }
     is(BranchType.BLTU) {
-      io.pcSelect := (io.data1.asUInt < io.data2.asUInt)
+      io.takeBranch := (io.data1.asUInt < io.data2.asUInt)
     }
     is(BranchType.BGEU) {
-      io.pcSelect := (io.data1.asUInt >= io.data2.asUInt)
+      io.takeBranch := (io.data1.asUInt >= io.data2.asUInt)
     }
   }
 

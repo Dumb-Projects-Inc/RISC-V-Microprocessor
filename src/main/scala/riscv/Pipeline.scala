@@ -148,12 +148,10 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   alu.io.op := ID_EX.control.ex.aluOp
   val aluResult = alu.io.result.asUInt
 
-  // TODO: Branching logic
-  // val branchLogic = Module(new BranchLogic())
-  // branchLogic.io.data1 := rd1Val.asSInt
-  // branchLogic.io.data2 := rd2Val.asSInt
-  // branchLogic.io.branchJump := decoder.io.branchType
-  // val pcSelect = branchLogic.io.pcSelect
+  val branchLogic = Module(new BranchLogic())
+  branchLogic.io.data1 := regFile.io.reg1Data
+  branchLogic.io.data2 := regFile.io.reg2Data
+  branchLogic.io.branchType := ID_EX.control.ex.branchType
 
   val EX_MEM = RegInit({
     val bundle = Wire(new Pipeline.EX_MEM())
