@@ -40,6 +40,7 @@ object ControlSignals {
     val aluOp = ALUOp()
     val aluInput1 = ALUInput1()
     val aluInput2 = ALUInput2()
+    val branchType = BranchType()
   }
   class MEM extends Bundle {
     val memOp = MemOp()
@@ -64,7 +65,10 @@ class Decoder extends Module {
       val mem = Output(new ControlSignals.MEM())
       val wb = Output(new ControlSignals.WB())
     }
-    val branchType = Output(BranchType())
+    val uses = Output(new Bundle {
+      val rs1 = Bool()
+      val rs2 = Bool()
+    })
   })
 
   // val opcode = io.instr(6, 0)
@@ -76,10 +80,13 @@ class Decoder extends Module {
   io.rs2 := io.instr(24, 20)
 
   io.control.ex := DontCare
+  io.control.ex.branchType := BranchType.NO
+
   io.control.mem := DontCare
   io.control.mem.memOp := MemOp.Noop
+
   io.control.wb := DontCare
-  io.branchType := BranchType.NO
+  io.control.wb.writeEnable := false.B
 
   val format = Wire(Format())
   format := DontCare
@@ -87,6 +94,26 @@ class Decoder extends Module {
   immGen.io.instr := io.instr
   immGen.io.format := format
   io.imm := immGen.io.out
+
+  io.uses.rs1 := false.B
+  io.uses.rs2 := false.B
+  switch(format) {
+    is(Format.R) {
+      io.uses.rs1 := true.B
+      io.uses.rs2 := true.B
+    }
+    is(Format.I) {
+      io.uses.rs1 := true.B
+    }
+    is(Format.S) {
+      io.uses.rs1 := true.B
+      io.uses.rs2 := true.B
+    }
+    is(Format.B) {
+      io.uses.rs1 := true.B
+      io.uses.rs2 := true.B
+    }
+  }
 
   when(io.instr === Instruction.ADDI) {
     io.control.ex.aluOp := ALUOp.Add
@@ -128,19 +155,25 @@ class Decoder extends Module {
     io.control.ex.aluOp := ALUOp.Add
     io.control.ex.aluInput1 := ALUInput1.Pc
     io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.ex.branchType := BranchType.J
     io.control.wb.writeSource := WriteSource.Pc
     io.control.wb.writeEnable := true.B
     format := Format.J
-    io.branchType := BranchType.J
   }
   when(io.instr === Instruction.JALR) {
     io.control.ex.aluOp := ALUOp.Add
     io.control.ex.aluInput1 := ALUInput1.Rs1
     io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.ex.branchType := BranchType.J
     io.control.wb.writeSource := WriteSource.Pc
     io.control.wb.writeEnable := true.B
     format := Format.I
-    io.branchType := BranchType.J
+  }
+  when(io.instr === Instruction.BEQ) {
+    io.control.ex.aluInput1 := ALUInput1.Pc
+    io.control.ex.aluInput2 := ALUInput2.Imm
+    io.control.ex.branchType := BranchType.BEQ
+    format := Format.B
   }
 
 }

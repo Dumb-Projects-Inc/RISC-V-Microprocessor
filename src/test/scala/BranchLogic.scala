@@ -12,28 +12,28 @@ class BranchLogicSpec extends AnyFunSpec with ChiselSim with Matchers {
       simulate(new BranchLogic()) { dut =>
         // Initialize inputs
         for (bt <- BranchType.all) {
-          dut.io.branchJump.poke(bt)
+          dut.io.branchType.poke(bt)
           dut.io.data1.poke(10.S)
           dut.io.data2.poke(10.S)
           dut.clock.step()
 
           bt match {
             case BranchType.BEQ =>
-              dut.io.pcSelect.expect(true.B)
+              dut.io.takeBranch.expect(true.B)
             case BranchType.BNE =>
-              dut.io.pcSelect.expect(false.B)
+              dut.io.takeBranch.expect(false.B)
             case BranchType.BLT =>
-              dut.io.pcSelect.expect(false.B)
+              dut.io.takeBranch.expect(false.B)
             case BranchType.BGE =>
-              dut.io.pcSelect.expect(true.B)
+              dut.io.takeBranch.expect(true.B)
             case BranchType.BLTU =>
-              dut.io.pcSelect.expect(false.B)
+              dut.io.takeBranch.expect(false.B)
             case BranchType.BGEU =>
-              dut.io.pcSelect.expect(true.B)
+              dut.io.takeBranch.expect(true.B)
             case BranchType.J =>
-              dut.io.pcSelect.expect(true.B)
+              dut.io.takeBranch.expect(true.B)
             case BranchType.NO =>
-              dut.io.pcSelect.expect(false.B)
+              dut.io.takeBranch.expect(false.B)
           }
         }
       }

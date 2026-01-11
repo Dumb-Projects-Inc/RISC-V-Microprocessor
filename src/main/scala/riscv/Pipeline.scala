@@ -66,8 +66,20 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   val dbg = if (debug) Some(IO(Output(Vec(32, UInt(32.W))))) else None
 
+  val hazardUnit = Module(new HazardUnit())
+  val branchLogic = Module(new BranchLogic())
+  hazardUnit.io.exRedirect := branchLogic.io.takeBranch
+  val alu = Module(new ALU())
+  val aluResult = alu.io.result.asUInt
   val pc = RegInit(0.U(32.W))
-  pc := pc + 4.U
+
+  when(hazardUnit.io.out.stallPC) {
+    pc := pc
+  }.elsewhen(branchLogic.io.takeBranch) {
+    pc := aluResult
+  }.otherwise {
+    pc := pc + 4.U
+  }
   io.instrPort.addr := pc
   io.instrPort.enable := true.B
 
@@ -97,9 +109,15 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dontTouch(IF_ID)
   }
 
-  IF_ID.valid := true.B // Valid is initialized to false, set to true on next clockcycle. Valid signal cascades to next cycle
-  IF_ID.instr := io.instrPort.instr
-  IF_ID.pc := RegNext(pc)
+  when(hazardUnit.io.out.flushIFID) {
+    IF_ID.valid := false.B
+    IF_ID.instr := 0.U
+    IF_ID.pc := 0.U
+  }.otherwise {
+    IF_ID.valid := true.B
+    IF_ID.instr := io.instrPort.instr
+    IF_ID.pc := RegNext(pc)
+  }
 
   // ID
   val decoder = Module(new Decoder())
@@ -119,8 +137,19 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dontTouch(ID_EX)
   }
 
+  hazardUnit.io.id.rs1 := decoder.io.rs1
+  hazardUnit.io.id.rs2 := decoder.io.rs2
+  hazardUnit.io.id.usesRs1 := decoder.io.uses.rs1
+  hazardUnit.io.id.usesRs2 := decoder.io.uses.rs2
+
   ID_EX.pc := IF_ID.pc
   ID_EX.valid := IF_ID.valid
+
+  when(hazardUnit.io.out.flushIDEX) {
+    ID_EX.valid := false.B
+    ID_EX.control.mem.memOp := MemOp.Noop
+    ID_EX.control.wb.writeEnable := false.B
+  }
 
   ID_EX.imm := decoder.io.imm
   ID_EX.rd := decoder.io.rd
@@ -130,7 +159,6 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   ID_EX.control.wb := decoder.io.control.wb
 
   // EX
-  val alu = Module(new ALU())
   val aluInput1 =
     Mux(
       ID_EX.control.ex.aluInput1 === ALUInput1.Rs1,
@@ -146,12 +174,13 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   alu.io.a := aluInput1
   alu.io.b := aluInput2
   alu.io.op := ID_EX.control.ex.aluOp
-  val aluResult = alu.io.result.asUInt
 
-  val branchLogic = Module(new BranchLogic())
-  branchLogic.io.data1 := regFile.io.reg1Data
-  branchLogic.io.data2 := regFile.io.reg2Data
+  branchLogic.io.data1 := regFile.io.reg1Data.asSInt
+  branchLogic.io.data2 := regFile.io.reg2Data.asSInt
   branchLogic.io.branchType := ID_EX.control.ex.branchType
+
+  hazardUnit.io.ex.rd := ID_EX.rd
+  hazardUnit.io.ex.isLoad := ID_EX.control.mem.memOp === MemOp.Load
 
   val EX_MEM = RegInit({
     val bundle = Wire(new Pipeline.EX_MEM())
