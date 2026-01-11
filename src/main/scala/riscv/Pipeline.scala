@@ -255,5 +255,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     is(WriteSource.Memory) {
       regFile.io.writeData := io.dataPort.dataRead
     }
+    is(WriteSource.Pc) {
+      regFile.io.writeData := MEM_WB.pc + 4.U
+    }
   }
 }
