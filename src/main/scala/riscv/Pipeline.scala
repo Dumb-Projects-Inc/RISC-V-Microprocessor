@@ -122,18 +122,6 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dontTouch(IF_ID)
   }
 
-  when(hazardUnit.io.out.flushIFID) {
-    IF_ID.valid := false.B
-    IF_ID.instr := 0.U
-    IF_ID.pc := 0.U
-  }.elsewhen(hazardUnit.io.out.stallIFID) {
-    IF_ID := IF_ID
-  }.otherwise {
-    IF_ID.valid := true.B
-    IF_ID.instr := io.instrPort.instr
-    IF_ID.pc := RegNext(pc)
-  }
-
   // ID
   val decoder = Module(new Decoder())
   decoder.io.instr := IF_ID.instr
@@ -157,16 +145,22 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   hazardUnit.io.id.usesRs1 := decoder.io.uses.rs1
   hazardUnit.io.id.usesRs2 := decoder.io.uses.rs2
 
+  when(hazardUnit.io.out.stallIFID) {
+    IF_ID := IF_ID
+  }.elsewhen(hazardUnit.io.out.flushIFID) {
+    IF_ID.instr := 0x00000013.U
+    IF_ID.pc := 0.U
+    IF_ID.valid := false.B
+  }.otherwise {
+    IF_ID.valid := true.B
+    IF_ID.instr := io.instrPort.instr
+    IF_ID.pc := RegNext(pc)
+  }
+
   ID_EX.pc := IF_ID.pc
   ID_EX.valid := IF_ID.valid
   ID_EX.rs1 := decoder.io.rs1
   ID_EX.rs2 := decoder.io.rs2
-
-  when(hazardUnit.io.out.flushIDEX) {
-    ID_EX.valid := false.B
-    ID_EX.control.mem.memOp := MemOp.Noop
-    ID_EX.control.wb.writeEnable := false.B
-  }
 
   ID_EX.imm := decoder.io.imm
   ID_EX.rd := decoder.io.rd
@@ -175,6 +169,12 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   ID_EX.control.mem := decoder.io.control.mem
   ID_EX.control.wb := decoder.io.control.wb
 
+  when(hazardUnit.io.out.flushIDEX) {
+    ID_EX.control.mem.memOp := MemOp.Noop
+    ID_EX.control.wb.writeEnable := false.B
+    ID_EX.valid := false.B
+    ID_EX.control.ex.branchType := BranchType.NO
+  }
   // EX
   val EX_MEM = RegInit({
     val bundle = Wire(new Pipeline.EX_MEM())
