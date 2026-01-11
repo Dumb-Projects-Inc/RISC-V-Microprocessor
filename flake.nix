@@ -34,6 +34,7 @@
               python3
               jdk21_headless
               metals
+              gtkwave
             ]
             ++ [crossCompilation.gcc crossCompilation.binutils];
           CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
