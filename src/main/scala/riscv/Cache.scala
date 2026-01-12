@@ -113,7 +113,9 @@ class CacheController(ROMProgram: String) extends Module {
 
   when(io.instrPort.enable) {
     when(instrRegion === MemoryRegions.ROM) {
-      io.instrPort.instr := ROM(io.instrPort.addr(31, 2)) // word aligned
+      io.instrPort.instr := RegNext(
+        ROM(io.instrPort.addr(31, 2))
+      ) // word aligned
 
     }.elsewhen(instrRegion === MemoryRegions.Peripherals) {
       // instructions from peripherals not supported
@@ -136,7 +138,7 @@ class CacheController(ROMProgram: String) extends Module {
   when(io.dataPort.enable) {
     when(dataRegion === MemoryRegions.ROM) {
       // Data access to ROM (should be read-only)
-      io.dataPort.dataRead := ROM(io.dataPort.addr(31, 2))
+      io.dataPort.dataRead := RegNext(ROM(io.dataPort.addr(31, 2)))
       io.dataPort.stall := false.B
     }.elsewhen(dataRegion === MemoryRegions.Peripherals) {
       // Data access to Peripherals
