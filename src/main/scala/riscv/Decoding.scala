@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 
 object ALUInput1 extends ChiselEnum {
-  val Rs1, Pc, Zero = Value
+  val Rs1, Pc = Value
 }
 
 object ALUInput2 extends ChiselEnum {
@@ -12,10 +12,10 @@ object ALUInput2 extends ChiselEnum {
 }
 
 object ALUOp extends ChiselEnum {
-  val Add, Sub, Sll, Slt, Sltu, Xor, Srl, Sra, Or, And = Value
+  val Add, Sub, Sll, Slt, Sltu, Xor, Srl, Sra, Or, And, Noop = Value
 }
 
-object WriteSink extends ChiselEnum {
+object WriteSource extends ChiselEnum {
   val ALU, Memory, Pc = Value
 }
 
@@ -44,18 +44,15 @@ class Decoder extends Module {
     val wb = Output(new ControlSignals.WB())
   })
 
-  // val opcode = io.instr(6, 0)
-  // val funct3 = io.instr(14, 12)
-  // val funct7 = io.instr(31, 25)
-
   io.ex := DontCare
   io.ex.memOp := MemOp.Noop
 
   io.wb := DontCare
   io.wb.writeEnable := false.B
   io.wb.branchType := BranchType.NO
-
   io.wb.rd := io.instr(11, 7)
+
+  io.id := DontCare
   io.id.rs1 := io.instr(19, 15)
   io.id.rs2 := io.instr(24, 20)
 
@@ -68,29 +65,39 @@ class Decoder extends Module {
   io.ex.imm := immGen.io.out
 
   when(io.instr === Instruction.ADDI) {
-    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluInput1Source := ALUInput1.Rs1
+    io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSink.ALU
+    io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.ADD) {
     io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput2 := ALUInput2.Rs2
+    io.ex.aluInput1Source := ALUInput1.Rs1
+    io.ex.aluInput2Source := ALUInput2.Rs2
     io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSink.ALU
+    io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.LUI) {
-    io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput2 := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Noop
+    io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSink.ALU
+    io.wb.writeSource := WriteSource.ALU
     format := Format.U
   }
+  // when(io.instr === Instruction.AUIPC) {
+  //   io.wb.aluOp := ALUOp.Add
+  //   io.ex.aluInput1 := ALUInput1.Pc
+  //   io.ex.aluInput2 := ALUInput2.Imm
+  //   io.wb.writeEnable := false.B
+  //   io.wb.writeSource := WriteSource.ALU
+  //   format := Format.U
+  // }
   when(io.instr === Instruction.LW) {
     io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSink.Memory
+    io.wb.writeSource := WriteSource.Memory
     io.ex.memOp := MemOp.Load
     io.ex.memSize := MemSize.Word
     format := Format.I
@@ -104,35 +111,34 @@ class Decoder extends Module {
   // Branches
   when(io.instr === Instruction.JAL) {
     io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.branchType := BranchType.J
-    io.wb.writeSource := WriteSink.Pc
+    io.wb.writeSource := WriteSource.Pc
     io.wb.writeEnable := true.B
     format := Format.J
   }
   when(io.instr === Instruction.JALR) {
     io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.branchType := BranchType.J
-    io.wb.writeSource := WriteSink.Pc
+    io.wb.writeSource := WriteSource.Pc
     io.wb.writeEnable := true.B
     format := Format.I
   }
   when(io.instr === Instruction.BEQ) {
-    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.branchType := BranchType.BEQ
     format := Format.B
   }
   when(io.instr === Instruction.BNE) {
-    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.branchType := BranchType.BNE
-        format := Format.B
-      }
-    
-    }
-    
+    format := Format.B
+  }
+
+}
 
 class ImmGen extends Module {
   val io = IO(new Bundle {

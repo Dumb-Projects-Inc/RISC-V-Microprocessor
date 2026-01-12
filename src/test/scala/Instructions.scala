@@ -103,6 +103,22 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(25)
       }
     }
+    it("should implement jal") {
+      val input =
+        """
+       addi x1, x0, 10
+       addi x2, x0, 15
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       add  x3, x1, x2
+       """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+
+        dut.io.dbg(3).expect(25)
+      }
+    }
     // it("should handle conditional branches (BEQ)") {
     //   val input =
     //     """
@@ -154,32 +170,29 @@ class Instructions extends AnyFunSpec with ChiselSim {
     //     dut.io.dbg(3).expect(100.U)
     //   }
     // }
-    // it("should jump correctly") {
-    //   val input =
-    //     """
-    //    addi x1, x0, 1
-    //    jal x0, 32
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x1, x1, 1
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(15)
-    //
-    //     dut.io.dbg(1).expect(1.U)
-    //   }
-    // }
+    it("should jump correctly") {
+      val input =
+        """
+       addi x1, x0, 1
+       jal x2, 32
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x1, x1, 1
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(15)
+
+        dut.io.dbg(1).expect(1.U)
+        dut.io.dbg(2).expect(8.U)
+      }
+    }
     // it("should work with LUI") {
     //   val input =
     //     """

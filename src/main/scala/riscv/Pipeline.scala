@@ -7,9 +7,11 @@ object ControlSignals {
   class ID extends Bundle {
     val rs1 = UInt(5.W)
     val rs2 = UInt(5.W)
+    val pc = UInt(32.W)
   }
   class EX extends Bundle {
-    val aluInput2 = ALUInput2()
+    val aluInput1Source = ALUInput1()
+    val aluInput2Source = ALUInput2()
     val memOp = MemOp()
     val memSize = MemSize()
     val imm = SInt(32.W)
@@ -18,10 +20,11 @@ object ControlSignals {
     val aluInput1 = SInt(32.W)
     val aluInput2 = SInt(32.W)
     val aluOp = ALUOp()
-    val writeSource = WriteSink()
+    val writeSource = WriteSource()
     val writeEnable = Bool()
     val branchType = BranchType()
     val rd = UInt(5.W)
+    val pc = UInt(32.W)
   }
 }
 
@@ -104,6 +107,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   ID_EX_REG.ex := decoder.io.ex
   ID_EX_REG.wb := decoder.io.wb
+  ID_EX_REG.wb.pc := RegNext(pc)
 
   // STAGE: Retrieve memory and prepare ALU inputs
 
@@ -125,9 +129,13 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   }
 
   EX_WB_REG.wb := ID_EX_REG.wb
-  EX_WB_REG.wb.aluInput1 := registers.io.reg1Data.asSInt
+  EX_WB_REG.wb.aluInput1 := Mux(
+    ID_EX_REG.ex.aluInput1Source === ALUInput1.Rs1,
+    registers.io.reg1Data.asSInt,
+    ID_EX_REG.wb.pc.asSInt
+  )
   EX_WB_REG.wb.aluInput2 := Mux(
-    ID_EX_REG.ex.aluInput2 === ALUInput2.Rs2,
+    ID_EX_REG.ex.aluInput2Source === ALUInput2.Rs2,
     registers.io.reg2Data.asSInt,
     ID_EX_REG.ex.imm
   )
@@ -138,11 +146,22 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   alu.io.a := EX_WB_REG.wb.aluInput1
   alu.io.b := EX_WB_REG.wb.aluInput2
   alu.io.op := EX_WB_REG.wb.aluOp
+  val aluResult = alu.io.result.asUInt
 
-  val opResult = Mux(
-    EX_WB_REG.wb.writeSource === WriteSink.ALU,
-    alu.io.result.asUInt,
-    io.dataPort.dataRead
+  val branch = Module(new BranchLogic())
+  branch.io.data1 := EX_WB_REG.wb.aluInput1
+  branch.io.data2 := EX_WB_REG.wb.aluInput2
+  branch.io.branchType := EX_WB_REG.wb.branchType
+
+  when(branch.io.takeBranch) {
+    pc := aluResult
+  }
+
+  val opResult = MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
+    Seq(
+      WriteSource.Memory -> io.dataPort.dataRead,
+      WriteSource.Pc -> (EX_WB_REG.wb.pc + 4.U)
+    )
   )
   registers.io.writeData := opResult
   registers.io.wrEn := EX_WB_REG.wb.writeEnable

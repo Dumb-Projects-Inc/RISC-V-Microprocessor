@@ -42,6 +42,9 @@ class ALU extends Module {
     is(ALUOp.And) { // bitwise and
       io.result := io.a & io.b
     }
+    is(ALUOp.Noop) {
+      io.result := io.b
+    }
     // is(ALUOp.Mul) { // multiply
     //   io.result := (io.a.asSInt * io.b.asSInt).asSInt
     // }
