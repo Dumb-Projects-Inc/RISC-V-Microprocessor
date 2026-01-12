@@ -76,7 +76,6 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   if (debug) {
     dontTouch(io.instrPort.instr)
-    dontTouch(decoder.io.wb.rd)
   }
 
   val registers = Module(new RegisterFile(debug))
@@ -125,18 +124,18 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dontTouch(EX_WB_REG)
   }
 
+  EX_WB_REG.wb := ID_EX_REG.wb
   EX_WB_REG.wb.aluInput1 := registers.io.reg1Data.asSInt
   EX_WB_REG.wb.aluInput2 := Mux(
     ID_EX_REG.ex.aluInput2 === ALUInput2.Rs2,
     registers.io.reg2Data.asSInt,
     ID_EX_REG.ex.imm
   )
-  EX_WB_REG.wb := ID_EX_REG.wb
 
   // STAGE: ALU and WB
 
   val alu = Module(new ALU())
-  alu.io.a := EX_WB_REG.wb.aluInput1 // TODO: Mux from previous instruction
+  alu.io.a := EX_WB_REG.wb.aluInput1
   alu.io.b := EX_WB_REG.wb.aluInput2
   alu.io.op := EX_WB_REG.wb.aluOp
 

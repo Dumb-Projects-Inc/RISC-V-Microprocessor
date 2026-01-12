@@ -128,13 +128,11 @@ class Decoder extends Module {
     io.ex.aluInput2 := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.branchType := BranchType.BNE
-    format := Format.B
-  }
-
-  printf(p"Decoded: Instr=0x${Hexadecimal(io.instr)}, RD_raw=${io.instr(11, 7)}, RD_out=${io.wb.rd}\n")
-
-
-}
+        format := Format.B
+      }
+    
+    }
+    
 
 class ImmGen extends Module {
   val io = IO(new Bundle {
