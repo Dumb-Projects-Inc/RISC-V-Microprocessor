@@ -25,7 +25,7 @@ object Bootloader {
   jalr x0, 0(x1)      'jump to loaded address
 """
   val TEST = """
-  addi x1, x0, 0xff
+  addi x1, x0, 4
   addi x0, x0, 0
   addi x0, x0, 0
   addi x0, x0, 0
@@ -33,7 +33,7 @@ object Bootloader {
   addi x0, x0, 0
   on:
     lw x2, 0(x1)
-  lui x3, 0xFFFFF #delay
+  lui x3, 0x006D0
   addi x0, x0, 0
   addi x0, x0, 0
   addi x0, x0, 0
@@ -41,14 +41,17 @@ object Bootloader {
   addi x0, x0, 0
   delay:
     addi x3, x3, -1
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
     bne x3, x0, delay
     addi x0, x0, 0
     addi x0, x0, 0
     addi x0, x0, 0
     addi x0, x0, 0
     addi x0, x0, 0
-  lw x2, 0(x0) # turn off
-  lui x3, 0xFFFFF #delay
+  lw x2, 0(x0) 
+  lui x3, 0x006D0
   addi x0, x0, 0
   addi x0, x0, 0
   addi x0, x0, 0
@@ -56,6 +59,11 @@ object Bootloader {
   addi x0, x0, 0
   delay2:
     addi x3, x3, -1
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
     bne x3, x0, delay2
     addi x0, x0, 0
     addi x0, x0, 0
@@ -72,23 +80,40 @@ object Bootloader {
 
   val romhex = RISCVAssembler.fromString(TEST.stripMargin)
 }
-class RV32ITop extends Module {
+
+class RV32Debug extends Bundle {
+  val instrAddr = UInt(32.W)
+  val instr = UInt(32.W)
+}
+
+class RV32ITop(debug: Boolean = false) extends Module {
   val io = IO(new Bundle {
     // val sw = Input(Bits(16.W)) // 16 switches that should be readable
-    // val btn = Input(Bits(3.W)) // 5 buttons
+    // val btn = Input(Bits(4.W)) // 4 buttons (1 for reset)
     val LED = Output(Bits(16.W)) // 16 LEDs that should be writable
 
     // val txd = Output(Bool()) // for uart
     // val rxd = Input(Bool()) // for uart
   })
 
+  val dbg = if (debug) Some(IO(Output(new RV32Debug()))) else None
+
   val MMU = Module(
     new CacheController(ROMProgram = Bootloader.romhex)
   ) // 64 KB memory
-  val pipeline = Module(new Pipeline(debug = true, debugPrint = true))
+  val pipeline = Module(new Pipeline(debug = debug))
+  if (debug) {
+    dbg.get.instrAddr := pipeline.dbg.get.pc
+    dbg.get.instr := pipeline.io.instrPort.instr
+  }
+
   pipeline.io.instrPort <> MMU.io.instrPort
   pipeline.io.dataPort <> MMU.io.dataPort
-  io.LED := pipeline.io.dataPort.addr(15, 0)
+  val led = RegInit(255.U(16.W))
+  when(pipeline.io.dataPort.enable) {
+    led := pipeline.io.dataPort.addr(15, 0)
+  }
+  io.LED := led
 
 }
 
