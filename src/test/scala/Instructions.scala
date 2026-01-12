@@ -45,33 +45,34 @@ class TestTop(instr: String) extends Module {
 
 class Instructions extends AnyFunSpec with ChiselSim {
   describe("Basic instructions") {
-    // it("should correctly load and store words") {
-    //   val input =
-    //     """
-    //    addi x1, x0, 123
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    sw x1, 8(x0)
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    lw x2, 8(x0)
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(15)
-    //
-    //     dut.io.dbg(0).expect(0.U)
-    //     dut.io.dbg(1).expect(123)
-    //     dut.io.dbg(2).expect(123)
-    //   }
-    // }
+    it("should correctly load and store words") {
+      val input =
+        """
+       addi x1, x0, 123
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       sw x1, 8(x0)
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       lw x2, 8(x0)
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(15)
+
+        dut.io.dbg(0).expect(0.U)
+        dut.io.dbg(1).expect(123)
+        dut.io.dbg(2).expect(123)
+      }
+    }
     it("should implement addi") {
       val input =
         """
@@ -84,6 +85,22 @@ class Instructions extends AnyFunSpec with ChiselSim {
       simulate(new TestTop(input)) { dut =>
         dut.clock.step(5)
         dut.io.dbg(1).expect(10.U)
+      }
+    }
+    it("should implement add") {
+      val input =
+        """
+       addi x1, x0, 10
+       addi x2, x0, 15
+       addi x0, x0, 0
+       addi x0, x0, 0
+       addi x0, x0, 0
+       add  x3, x1, x2
+       """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+
+        dut.io.dbg(3).expect(25)
       }
     }
     // it("should handle conditional branches (BEQ)") {
@@ -226,31 +243,31 @@ class Instructions extends AnyFunSpec with ChiselSim {
     //   }
     // }
     //
-    // it("should handle negative memory offsets (LW/SW)") {
-    //   val input =
-    //     """
-    //     addi x1, x0, 100   // Base address = 100
-    //     addi x2, x0, 0xAA  // Pattern 1
-    //     addi x3, x0, 0xBB  // Pattern 2
-    //
-    //     sw x2, 4(x1)       // Store 0xAA at 104
-    //     sw x3, -4(x1)      // Store 0xBB at 96
-    //
-    //     lw x4, 4(x1)       // Load from 104
-    //     lw x5, -4(x1)      // Load from 96
-    //     """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(20)
-    //
-    //     dut.io.dbg(4).expect(0xaa.U)
-    //     dut.io.dbg(5).expect(0xbb.U)
-    //   }
-    // }
-    //
+    it("should handle negative memory offsets (LW/SW)") {
+      val input =
+        """
+        addi x1, x0, 100   // Base address = 100
+        addi x2, x0, 0xAA  // Pattern 1
+        addi x3, x0, 0xBB  // Pattern 2
+
+        sw x2, 4(x1)       // Store 0xAA at 104
+        sw x3, -4(x1)      // Store 0xBB at 96
+
+        lw x4, 4(x1)       // Load from 104
+        lw x5, -4(x1)      // Load from 96
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(20)
+
+        dut.io.dbg(4).expect(0xaa.U)
+        dut.io.dbg(5).expect(0xbb.U)
+      }
+    }
+
     // it("should construct large values using LUI and ADDI") {
     //   val input =
     //     """
