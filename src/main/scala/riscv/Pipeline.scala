@@ -109,7 +109,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
   io.dataPort.addr := memoryAddress.asUInt
-  io.dataPort.enable := true.B
+  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
   io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
   io.dataPort.dataWrite := registers.io.reg2Data // TODO: Mux from ALU output on conflict
 
