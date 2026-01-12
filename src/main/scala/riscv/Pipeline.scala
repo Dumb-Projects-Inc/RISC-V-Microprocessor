@@ -18,7 +18,7 @@ object ControlSignals {
     val aluInput1 = SInt(32.W)
     val aluInput2 = SInt(32.W)
     val aluOp = ALUOp()
-    val writeSink = WriteSink()
+    val writeSource = WriteSink()
     val writeEnable = Bool()
     val branchType = BranchType()
     val rd = UInt(5.W)
@@ -140,7 +140,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   alu.io.op := EX_WB_REG.wb.aluOp
 
   val opResult = Mux(
-    EX_WB_REG.wb.writeSink === WriteSink.ALU,
+    EX_WB_REG.wb.writeSource === WriteSink.ALU,
     alu.io.result.asUInt,
     io.dataPort.dataRead
   )

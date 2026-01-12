@@ -71,26 +71,26 @@ class Decoder extends Module {
     io.ex.aluInput2 := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.writeEnable := true.B
-    io.wb.writeSink := WriteSink.ALU
+    io.wb.writeSource := WriteSink.ALU
     format := Format.I
   }
   when(io.instr === Instruction.ADD) {
     io.wb.aluOp := ALUOp.Add
     io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
-    io.wb.writeSink := WriteSink.ALU
+    io.wb.writeSource := WriteSink.ALU
     format := Format.R
   }
   when(io.instr === Instruction.LUI) {
     io.wb.aluOp := ALUOp.Add
     io.ex.aluInput2 := ALUInput2.Imm
     io.wb.writeEnable := true.B
-    io.wb.writeSink := WriteSink.ALU
+    io.wb.writeSource := WriteSink.ALU
     format := Format.U
   }
   when(io.instr === Instruction.LW) {
     io.wb.writeEnable := true.B
-    io.wb.writeSink := WriteSink.Memory
+    io.wb.writeSource := WriteSink.Memory
     io.ex.memOp := MemOp.Load
     io.ex.memSize := MemSize.Word
     format := Format.I
@@ -106,7 +106,7 @@ class Decoder extends Module {
     io.wb.aluOp := ALUOp.Add
     io.ex.aluInput2 := ALUInput2.Imm
     io.wb.branchType := BranchType.J
-    io.wb.writeSink := WriteSink.Pc
+    io.wb.writeSource := WriteSink.Pc
     io.wb.writeEnable := true.B
     format := Format.J
   }
@@ -114,7 +114,7 @@ class Decoder extends Module {
     io.wb.aluOp := ALUOp.Add
     io.ex.aluInput2 := ALUInput2.Imm
     io.wb.branchType := BranchType.J
-    io.wb.writeSink := WriteSink.Pc
+    io.wb.writeSource := WriteSink.Pc
     io.wb.writeEnable := true.B
     format := Format.I
   }
