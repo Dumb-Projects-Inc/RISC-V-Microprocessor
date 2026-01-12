@@ -66,6 +66,9 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     val dataPort = new dataPort()
   })
 
+  // Forward declarations
+  val flush = WireDefault(false.B)
+
   // STAGE: Fetch instruction
   val pc = RegInit(0.U(32.W))
   pc := pc + 4.U
@@ -75,7 +78,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   // STAGE: Decode control signals and fetch registers
   val decoder = Module(new Decoder)
-  decoder.io.instr := io.instrPort.instr
+  decoder.io.instr := Mux(flush, Instruction.NOP, io.instrPort.instr)
 
   if (debug) {
     dontTouch(io.instrPort.instr)
@@ -109,6 +112,12 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   ID_EX_REG.wb := decoder.io.wb
   ID_EX_REG.wb.pc := RegNext(pc)
 
+  when(flush) {
+    ID_EX_REG.ex.memOp := MemOp.Noop
+    ID_EX_REG.wb.writeEnable := false.B
+    ID_EX_REG.wb.branchType := BranchType.NO
+  }
+
   // STAGE: Retrieve memory and prepare ALU inputs
 
   val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
@@ -140,6 +149,13 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     ID_EX_REG.ex.imm
   )
 
+  when(flush) {
+    EX_WB_REG.wb.writeEnable := false.B
+    EX_WB_REG.wb.branchType := BranchType.NO
+    io.dataPort.enable := false.B
+    io.dataPort.writeEn := false.B
+  }
+
   // STAGE: ALU and WB
 
   val alu = Module(new ALU())
@@ -154,7 +170,9 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   branch.io.branchType := EX_WB_REG.wb.branchType
 
   when(branch.io.takeBranch) {
+    io.instrPort.addr := aluResult
     pc := aluResult
+    flush := true.B
   }
 
   val opResult = MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(

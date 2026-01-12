@@ -259,15 +259,15 @@ class Instructions extends AnyFunSpec with ChiselSim {
     it("should handle negative memory offsets (LW/SW)") {
       val input =
         """
-        addi x1, x0, 100   // Base address = 100
-        addi x2, x0, 0xAA  // Pattern 1
-        addi x3, x0, 0xBB  // Pattern 2
+        addi x1, x0, 100
+        addi x2, x0, 0xAA
+        addi x3, x0, 0xBB
 
-        sw x2, 4(x1)       // Store 0xAA at 104
-        sw x3, -4(x1)      // Store 0xBB at 96
+        sw x2, 4(x1)
+        sw x3, -4(x1)
 
-        lw x4, 4(x1)       // Load from 104
-        lw x5, -4(x1)      // Load from 96
+        lw x4, 4(x1)
+        lw x5, -4(x1)
         """
       simulate(new TestTop(input)) { dut =>
         dut.reset.poke(true.B)
@@ -411,5 +411,25 @@ class Instructions extends AnyFunSpec with ChiselSim {
     //       dut.io.dbg(2).expect(42.U)
     //     }
     //   }
+    it("should flush on taken Branch") {
+      val input =
+        """
+        jal x0, end
+        addi x1, x0, 101
+        addi x1, x0, 102
+        addi x1, x0, 104
+        addi x1, x0, 108
+        end:
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+        dut.io.dbg(1).expect(0.U) // x3 should be 100
+      }
+    }
+
   }
 }
