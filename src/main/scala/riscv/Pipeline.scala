@@ -25,6 +25,8 @@ object ControlSignals {
     val branchType = BranchType()
     val rd = UInt(5.W)
     val pc = UInt(32.W)
+    val rs1 = UInt(32.W)
+    val rs2 = UInt(32.W)
   }
 }
 
@@ -143,11 +145,13 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     registers.io.reg1Data.asSInt,
     ID_EX_REG.wb.pc.asSInt
   )
+  EX_WB_REG.wb.rs1 := registers.io.reg1Data
   EX_WB_REG.wb.aluInput2 := Mux(
     ID_EX_REG.ex.aluInput2Source === ALUInput2.Rs2,
     registers.io.reg2Data.asSInt,
     ID_EX_REG.ex.imm
   )
+  EX_WB_REG.wb.rs2 := registers.io.reg2Data
 
   when(flush) {
     EX_WB_REG.wb.writeEnable := false.B
@@ -165,8 +169,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val aluResult = alu.io.result.asUInt
 
   val branch = Module(new BranchLogic())
-  branch.io.data1 := EX_WB_REG.wb.aluInput1
-  branch.io.data2 := EX_WB_REG.wb.aluInput2
+  branch.io.data1 := EX_WB_REG.wb.rs1.asSInt
+  branch.io.data2 := EX_WB_REG.wb.rs2.asSInt
   branch.io.branchType := EX_WB_REG.wb.branchType
 
   when(branch.io.takeBranch) {

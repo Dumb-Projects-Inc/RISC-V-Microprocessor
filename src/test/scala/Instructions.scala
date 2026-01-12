@@ -127,16 +127,30 @@ class Instructions extends AnyFunSpec with ChiselSim {
         """
         beq x0, x0, taken
         addi x1, x0, 1
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
+        addi x1, x0, 1
+        addi x1, x0, 1
+        addi x1, x0, 1
+        addi x1, x0, 1
         taken:
-        addi x1, x0, 2
+        addi x2, x0, 1
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
         """
       simulate(new TestTop(input)) { dut =>
         dut.clock.step(10)
 
-        dut.io.dbg(1).expect(2.U)
+        dut.io.dbg(1).expect(0.U)
+        dut.io.dbg(2).expect(1.U)
       }
     }
 
