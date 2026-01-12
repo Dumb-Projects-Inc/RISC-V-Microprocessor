@@ -125,22 +125,13 @@ class Instructions extends AnyFunSpec with ChiselSim {
     it("should handle conditional branches (BEQ)") {
       val input =
         """
-        beq x0, x0, taken
+        beq x0, x0, 24
         addi x1, x0, 1
         addi x1, x0, 1
         addi x1, x0, 1
         addi x1, x0, 1
         addi x1, x0, 1
-        taken:
         addi x2, x0, 1
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
-        addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
