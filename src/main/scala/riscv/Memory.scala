@@ -21,7 +21,7 @@ class Memory(depthWords: Int) extends Module {
   }
 
   io.bus.stall := pendingRead
-  io.bus.rdValid := pendingRead
+  io.bus.rdValid := RegNext(startRead, false.B)
   io.bus.rdData := readData
 
   when(startRead) {
