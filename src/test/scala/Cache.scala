@@ -7,7 +7,7 @@ import chisel3.simulator.scalatest.ChiselSim
 class CacheSpec extends AnyFunSpec with ChiselSim {
   describe("Cache") {
     it("should correctly handle hits and misses") {
-      simulate(new Cache(64, 64)) { dut =>
+      simulate(new Cache(64, 4)) { dut =>
         dut.io.addr.poke(0.U)
         dut.io.writeData.poke("hDEADBEEFCAFEBABE0123456789ABCDEF".U)
         dut.io.writeEnable.poke(true.B)
@@ -17,21 +17,19 @@ class CacheSpec extends AnyFunSpec with ChiselSim {
         dut.clock.step()
         dut.io.addr.poke(0.U)
         dut.io.hit.expect(true.B)
-        dut.io.readData.valid
-          .expect(false.B) // first cycle after read, not valid yet
         dut.clock.step(2)
 
         // dut.io.readData.valid.expect(true.B)
 
-        // new tag, should miss in same cycle
-        dut.io.addr.poke("h00010000".U)
+        // new tag, should miss
+        dut.io.addr.poke("h10000000".U)
+        dut.clock.step()
         dut.io.hit.expect(false.B)
-        dut.io.readData.valid.expect(true.B)
 
       }
     }
     it("should have zero latency within same index") {
-      simulate(new Cache(64, 64)) { dut =>
+      simulate(new Cache(64, 16)) { dut =>
         dut.io.addr.poke(0.U)
         dut.io.writeData.poke(
           "hDEADBEEFCAFEBABE0123456789ABCDEFDEADBEEFCAFEBABE0123456789ABCDEFDEADBEEFCAFEBABE0123456789ABCDEFDEADBEEFCAFEBABE0123456789ABCDEF".U
@@ -43,14 +41,13 @@ class CacheSpec extends AnyFunSpec with ChiselSim {
         dut.io.addr.poke(0.U)
         dut.clock.step()
         dut.io.hit.expect(true.B)
-        dut.io.readData.valid.expect(true.B)
-        dut.io.readData.bits.expect("hDEADBEEF".U)
+        dut.io.readData.expect("h89ABCDEF".U)
 
         // next offset same line
         dut.io.addr.poke(4.U)
+        dut.clock.step()
         dut.io.hit.expect(true.B)
-        dut.io.readData.valid.expect(true.B)
-        dut.io.readData.bits.expect("hCAFEBABE".U)
+        dut.io.readData.expect("h01234567".U)
 
       }
     }

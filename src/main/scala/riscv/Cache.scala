@@ -3,54 +3,67 @@ package riscv
 import chisel3._
 import chisel3.util._
 
-class CacheLine(val lineSize: Int) extends Bundle {
+class CacheLine(val blockWords: Int, val numLines: Int) extends Bundle {
   val valid = Bool()
-  val tag = UInt((32 - log2Ceil(lineSize)).W)
+  val tag = UInt((32 - log2Ceil(numLines) - log2Ceil(blockWords) - 2).W)
+  val data = Vec(blockWords, UInt(32.W))
 }
 
-class Cache(numLines: Int, lineSize: Int) extends Module {
+class Cache(numLines: Int, blockwords: Int) extends Module {
+  assert(
+    isPow2(numLines),
+    "Number of cache lines must be a power of 2"
+  )
+  assert(
+    log2Ceil(blockwords) + log2Ceil(numLines) <= 32,
+    "Cache size exceeds addressable memory space"
+  )
   val io = IO(new Bundle {
     val addr = Input(UInt(32.W))
-    val writeData = Input(UInt((lineSize * 8).W))
+    val writeData = Input(UInt((blockwords * 32).W))
     val writeEnable = Input(Bool())
-    val readData = Output(Valid(UInt(32.W)))
+    val readData = Output(UInt(32.W))
     val hit = Output(Bool())
   })
 
-  val lines = RegInit(
-    VecInit(Seq.fill(numLines)(0.U.asTypeOf(new CacheLine(lineSize))))
+  val cache = SyncReadMem(numLines, new CacheLine(blockwords, numLines))
+  // Offsets: Tag     | Index                | Block Offset      | Byte Offset (always 2 bit)
+  //          32-rest |      log2(numLines)  |  log2(blockwords) | 2
+  // 32 - 6 - 4 - 2 = 20 for 64 lines and 16 words per block
+  val indexBits = log2Ceil(numLines)
+  val blockOffBits = log2Ceil(blockwords)
+
+  val indexLo = 2 + blockOffBits
+  val indexHi = indexLo + indexBits - 1
+
+  val tagLo = indexHi + 1
+
+  val index = io.addr(indexHi, indexLo)
+  val tag = io.addr(31, tagLo)
+
+// read
+  val read = RegNext(
+    cache.read(index),
+    0.U.asTypeOf(new CacheLine(blockwords, numLines))
   )
-  val cache = SyncReadMem(numLines, UInt((lineSize * 8).W))
+  val tagR = RegNext(tag)
 
-  val index =
-    io.addr(log2Ceil(lineSize) + log2Ceil(numLines) - 1, log2Ceil(lineSize))
-  val tag = io.addr(31, log2Ceil(lineSize) + log2Ceil(numLines))
-  val offset = io.addr(log2Ceil(lineSize) - 1, 0)
+// offset must also be delayed to match SyncReadMem latency
+  val offR =
+    if (blockOffBits == 0) 0.U
+    else RegNext(io.addr(1 + blockOffBits, 2))
 
-  val line = lines(index)
-  val isHit = line.valid && (line.tag === tag)
+  io.readData := read.data(offR)
+  io.hit := read.valid && (read.tag === tagR)
 
-  io.hit := isHit
-  val lineData = cache.read(index)
-
-  val lastIndex = RegNext(index)
-  val isHitReg = RegNext(isHit, false.B)
-  io.readData.valid := RegNext(
-    (isHit && (index === lastIndex)) || (isHit && !isHitReg),
-    false.B
-  ) // we hit and same index means we already read data
-  io.readData.bits := (lineData << (offset << 3))(
-    lineSize * 8 - 1,
-    lineSize * 8 - 32
-  )
-
+// write
   when(io.writeEnable) {
-    // write to cache
-    lines(index).valid := true.B
-    lines(index).tag := tag
-    cache.write(index, io.writeData)
+    val newLine = Wire(new CacheLine(blockwords, numLines))
+    newLine.valid := true.B
+    newLine.tag := tag
+    newLine.data := io.writeData.asTypeOf(Vec(blockwords, UInt(32.W)))
+    cache.write(index, newLine)
   }
-
 }
 
 // Static Memory mapping
@@ -106,10 +119,7 @@ class CacheController(ROMProgram: String) extends Module {
   io.instrPort.stall := false.B
   io.dataPort.stall := false.B
 
-  val L1ICache = Module(new Cache(numLines = 256, lineSize = 4))
-  L1ICache.io.writeEnable := false.B
-  L1ICache.io.writeData := DontCare
-  L1ICache.io.addr := DontCare
+  val IDat = SyncReadMem(4096, UInt(32.W)) // 16 KB Instruction Data Memory
 
   when(io.instrPort.enable) {
     when(instrRegion === MemoryRegions.ROM) {
@@ -124,17 +134,14 @@ class CacheController(ROMProgram: String) extends Module {
       io.instrPort.stall := true.B // stall indefinitely for now
     }.otherwise {
       // Instruction fetch from Program Memory
-      L1ICache.io.addr := io.instrPort.addr
-      L1ICache.io.writeEnable := false.B // instruction fetch is read-only
-      io.instrPort.instr := L1ICache.io.readData.bits
-      io.instrPort.stall := !L1ICache.io.readData.valid && !L1ICache.io.hit
+      io.instrPort.instr := IDat.read(
+        io.instrPort.addr(11, 2),
+        io.instrPort.enable
+      )
     }
   }
 
-  val L1DCache = Module(new Cache(numLines = 64, lineSize = 16))
-  L1DCache.io.writeEnable := false.B
-  L1DCache.io.writeData := DontCare
-  L1DCache.io.addr := DontCare
+  val DDat = SyncReadMem(16384, UInt(32.W)) // 64 KB Data Memory
   when(io.dataPort.enable) {
     when(dataRegion === MemoryRegions.ROM) {
       // Data access to ROM (should be read-only)
@@ -144,12 +151,16 @@ class CacheController(ROMProgram: String) extends Module {
       // Data access to Peripherals
     }.otherwise {
       // Data access to Program Memory
-      L1DCache.io.addr := io.dataPort.addr
-      L1DCache.io.writeEnable := io.dataPort.writeEn
-      L1DCache.io.writeData := io.dataPort.dataWrite
-      io.dataPort.dataRead := L1DCache.io.readData.bits
-      io.dataPort.stall := !L1DCache.io.readData.valid && !L1DCache.io.hit
-
+      io.dataPort.dataRead := DDat.read(
+        io.dataPort.addr(11, 2),
+        io.dataPort.enable
+      )
+      when(io.dataPort.writeEn) {
+        DDat.write(
+          io.dataPort.addr(11, 2),
+          io.dataPort.dataWrite
+        )
+      }
     }
   }
 
