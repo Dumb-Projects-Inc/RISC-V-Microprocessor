@@ -73,9 +73,16 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   // STAGE: Fetch instruction
   val pc = RegInit(0.U(32.W))
-  pc := pc + 4.U
 
-  io.instrPort.addr := pc
+  val nextPc = WireDefault(pc + 4.U)
+  pc := nextPc
+
+  val first = RegNext(false.B, true.B)
+  when(first) {
+    nextPc := pc
+  }
+
+  io.instrPort.addr := nextPc
   io.instrPort.enable := true.B
 
   // STAGE: Decode control signals and fetch registers
@@ -112,7 +119,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   ID_EX_REG.ex := decoder.io.ex
   ID_EX_REG.wb := decoder.io.wb
-  ID_EX_REG.wb.pc := RegNext(pc)
+  ID_EX_REG.wb.pc := pc
 
   when(flush) {
     ID_EX_REG.ex.memOp := MemOp.Noop
@@ -174,8 +181,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   branch.io.branchType := EX_WB_REG.wb.branchType
 
   when(branch.io.takeBranch) {
-    io.instrPort.addr := aluResult
-    pc := aluResult
+    nextPc := aluResult
     flush := true.B
   }
 
