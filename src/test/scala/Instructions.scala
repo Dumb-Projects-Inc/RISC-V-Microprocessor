@@ -103,11 +103,10 @@ class Instructions extends AnyFunSpec with ChiselSim {
       val input =
         """
        addi x1, x0, 1
-       jal x2, 32
-       addi x0, x0, 0
-       addi x0, x0, 0
-       addi x0, x0, 0
-       addi x0, x0, 0
+       jal x2, 16
+       addi x1, x1, 1
+       addi x1, x1, 1
+       addi x1, x1, 1
        addi x1, x1, 1
        addi x0, x0, 0
        addi x0, x0, 0
@@ -118,7 +117,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       simulate(new TestTop(input)) { dut =>
         dut.clock.step(15)
 
-        dut.io.dbg(1).expect(1.U)
+        dut.io.dbg(1).expect(2.U)
         dut.io.dbg(2).expect(8.U)
       }
     }
@@ -276,30 +275,35 @@ class Instructions extends AnyFunSpec with ChiselSim {
     //   }
     // }
     //
-    // it("should handle not-taken branches correctly") {
-    //   val input =
-    //     """
-    //     addi x1, x0, 10
-    //     addi x2, x0, 20
-    //     beq x1, x2, skip    // Should NOT take branch (10 != 20)
-    //     addi x3, x0, 5      // Should execute
-    //     jal x0, end
-    //     skip:
-    //     addi x3, x0, 99     // Should NOT execute
-    //     end:
-    //     addi x0, x0, 0
-    //     """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(15)
-    //
-    //     dut.io.dbg(3).expect(5.U)
-    //   }
-    // }
-    //
+    it("should handle not-taken branches correctly") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x2, x0, 20
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        beq x1, x2, skip    // Should NOT take branch (10 != 20)
+        addi x3, x0, 5      // Should execute
+        jal x0, end
+        skip:
+        addi x3, x0, 99     // Should NOT execute
+        end:
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.reset.poke(true.B)
+        dut.clock.step(1)
+        dut.reset.poke(false.B)
+
+        dut.clock.step(15)
+
+        dut.io.dbg(3).expect(5.U)
+      }
+    }
+
   }
   describe("Pipeline Hazards & Forwarding") {
     //   it("should handle EX->EX forwarding (Back-to-back dependency)") {
@@ -350,27 +354,6 @@ class Instructions extends AnyFunSpec with ChiselSim {
     //       dut.clock.step(20) // Give extra time for the stall
     //       dut.io.dbg(1).expect(20.U)
     //       dut.io.dbg(2).expect(30.U)
-    //     }
-    //   }
-    //
-    //   it("should flush pipeline on taken Branch") {
-    //     val input =
-    //       """
-    //       beq  x0, x0, target  // Taken
-    //       addi x3, x0, 100     // Should be flushed!
-    //       addi x3, x0, 101     // Should be flushed!
-    //       addi x3, x0, 102     // Should be flushed!
-    //       addi x3, x0, 103     // Should be flushed!
-    //       target:
-    //       addi x4, x0, 15
-    //       """
-    //     simulate(new TestTop(input)) { dut =>
-    //       dut.reset.poke(true.B)
-    //       dut.clock.step(1)
-    //       dut.reset.poke(false.B)
-    //       dut.clock.step(20)
-    //       dut.io.dbg(3).expect(0.U) // x3 should remain 0
-    //       dut.io.dbg(4).expect(15.U)
     //     }
     //   }
     //
