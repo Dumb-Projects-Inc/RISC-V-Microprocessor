@@ -80,6 +80,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val first = RegNext(false.B, true.B)
   when(first) {
     nextPc := pc
+    flush := true.B
   }
 
   io.instrPort.addr := nextPc
