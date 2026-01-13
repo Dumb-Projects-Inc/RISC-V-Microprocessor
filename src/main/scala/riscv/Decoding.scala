@@ -111,6 +111,7 @@ class Decoder extends Module {
   // Branches
   when(io.instr === Instruction.JAL) {
     io.wb.aluOp := ALUOp.Add
+    io.ex.aluInput1Source := ALUInput1.Pc
     io.ex.aluInput2Source := ALUInput2.Imm
     io.wb.branchType := BranchType.J
     io.wb.writeSource := WriteSource.Pc
