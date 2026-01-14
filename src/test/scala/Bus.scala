@@ -69,6 +69,14 @@ class TestBusTop extends Module {
   val slave1 = Module(new TestSlave(0x10000000L, latency = 0))
   val slave2 = Module(new TestSlave(0x20000000L, latency = 0))
 
+  // I played around with the connections and found out that the
+  // test doesnt pass because of you trying to merge two slave results into one master
+  // the master doesnt know which slave it should listen to (garbage data vs valid data)
+  // We need a bus arbiter / multiplexer to select the correct slave based on
+  // valid signals from the slaves.
+  //
+  // I was able to make the 2 tests pass by making a multiplexer that selects based on valid signals.
+  // TODO: Imeplement a proper bus arbiter to hande multiple slaves.
   translator.io.bus <> slave1.io.bus
   translator.io.bus <> slave2.io.bus
 
