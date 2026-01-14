@@ -66,6 +66,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   })
 
   // Forward declarations
+  val aluResult = Wire(UInt(32.W))
   val flush = WireDefault(false.B)
 
   // STAGE: Fetch instruction
@@ -84,6 +85,20 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   io.instrPort.enable := true.B
 
   // STAGE: Decode control signals and fetch registers
+  val ID_EX_REG = RegInit({
+    val bundle = Wire(new Pipeline.ID_EX())
+    bundle := DontCare
+    bundle.ex.memOp := MemOp.Noop
+    bundle.wb.writeEnable := false.B
+    bundle.wb.branchType := BranchType.NO
+    bundle.ex.rs2 := 0.U
+    bundle.wb.rd := 0.U
+    bundle
+  })
+  if (debug) {
+    dontTouch(ID_EX_REG)
+  }
+
   val decoder = Module(new Decoder)
   decoder.io.instr := Mux(flush, Instruction.NOP, io.instrPort.instr)
 
@@ -102,19 +117,6 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   registers.io.readReg1 := decoder.io.ex.rs1
   registers.io.readReg2 := decoder.io.ex.rs2
 
-  // Register outputs for next stage
-  val ID_EX_REG = RegInit({
-    val bundle = Wire(new Pipeline.ID_EX())
-    bundle := DontCare
-    bundle.ex.memOp := MemOp.Noop
-    bundle.wb.writeEnable := false.B
-    bundle
-  })
-
-  if (debug) {
-    dontTouch(ID_EX_REG)
-  }
-
   ID_EX_REG.ex := decoder.io.ex
   ID_EX_REG.wb := decoder.io.wb
   ID_EX_REG.wb.pc := pc
@@ -123,26 +125,34 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     ID_EX_REG.ex.memOp := MemOp.Noop
     ID_EX_REG.wb.writeEnable := false.B
     ID_EX_REG.wb.branchType := BranchType.NO
+    ID_EX_REG.ex.rs2 := 0.U
+    ID_EX_REG.wb.rd := 0.U
   }
 
   // STAGE: Retrieve memory and prepare ALU inputs
-
-  val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
-  io.dataPort.addr := memoryAddress.asUInt
-  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
-  io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
-  io.dataPort.dataWrite := registers.io.reg2Data // TODO: Mux from ALU output, when
-
   val EX_WB_REG = RegInit({
     val bundle = Wire(new Pipeline.EX_WB())
     bundle := DontCare
     bundle.wb.writeEnable := false.B
+    bundle.wb.branchType := BranchType.NO
+    bundle.wb.rd := 0.U
     bundle
   })
 
   if (debug) {
     dontTouch(EX_WB_REG)
   }
+
+  val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
+  io.dataPort.addr := memoryAddress.asUInt
+  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
+  io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
+  io.dataPort.dataWrite := registers.io.reg2Data
+  // io.dataPort.dataWrite := Mux(
+  //   ID_EX_REG.ex.rs2 === EX_WB_REG.wb.rd,
+  //   registers.io.reg2Data,
+  //   aluResult
+  // )
 
   EX_WB_REG.wb := ID_EX_REG.wb
   EX_WB_REG.wb.aluInput1 := Mux(
@@ -161,8 +171,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   when(flush) {
     EX_WB_REG.wb.writeEnable := false.B
     EX_WB_REG.wb.branchType := BranchType.NO
-    io.dataPort.enable := false.B
-    io.dataPort.writeEn := false.B
+    EX_WB_REG.wb.rd := 0.U
   }
 
   // STAGE: ALU and WB
@@ -171,7 +180,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   alu.io.a := EX_WB_REG.wb.aluInput1
   alu.io.b := EX_WB_REG.wb.aluInput2
   alu.io.op := EX_WB_REG.wb.aluOp
-  val aluResult = alu.io.result.asUInt
+  aluResult := alu.io.result.asUInt
 
   val branch = Module(new BranchLogic())
   branch.io.data1 := EX_WB_REG.wb.rs1.asSInt
