@@ -4,17 +4,14 @@ import chisel3._
 import chisel3.util._
 
 object ControlSignals {
-  class ID extends Bundle {
-    val rs1 = UInt(5.W)
-    val rs2 = UInt(5.W)
-    val pc = UInt(32.W)
-  }
   class EX extends Bundle {
     val aluInput1Source = ALUInput1()
     val aluInput2Source = ALUInput2()
     val memOp = MemOp()
     val memSize = MemSize()
     val imm = SInt(32.W)
+    val rs1 = UInt(5.W)
+    val rs2 = UInt(5.W)
   }
   class WB extends Bundle {
     val aluInput1 = SInt(32.W)
@@ -102,8 +99,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dbg.get.pc := pc
   }
 
-  registers.io.readReg1 := decoder.io.id.rs1
-  registers.io.readReg2 := decoder.io.id.rs2
+  registers.io.readReg1 := decoder.io.ex.rs1
+  registers.io.readReg2 := decoder.io.ex.rs2
 
   // Register outputs for next stage
   val ID_EX_REG = RegInit({
@@ -134,7 +131,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   io.dataPort.addr := memoryAddress.asUInt
   io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
   io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
-  io.dataPort.dataWrite := registers.io.reg2Data // TODO: Mux from ALU output on conflict
+  io.dataPort.dataWrite := registers.io.reg2Data // TODO: Mux from ALU output, when
 
   val EX_WB_REG = RegInit({
     val bundle = Wire(new Pipeline.EX_WB())

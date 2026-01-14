@@ -39,22 +39,19 @@ object Format extends ChiselEnum {
 class Decoder extends Module {
   val io = IO(new Bundle {
     val instr = Input(UInt(32.W))
-    val id = Output(new ControlSignals.ID())
     val ex = Output(new ControlSignals.EX())
     val wb = Output(new ControlSignals.WB())
   })
 
   io.ex := DontCare
   io.ex.memOp := MemOp.Noop
+  io.ex.rs1 := io.instr(19, 15)
+  io.ex.rs2 := io.instr(24, 20)
 
   io.wb := DontCare
   io.wb.writeEnable := false.B
   io.wb.branchType := BranchType.NO
   io.wb.rd := io.instr(11, 7)
-
-  io.id := DontCare
-  io.id.rs1 := io.instr(19, 15)
-  io.id.rs2 := io.instr(24, 20)
 
   val format = Wire(Format())
   format := DontCare
