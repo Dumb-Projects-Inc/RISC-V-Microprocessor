@@ -2,11 +2,10 @@ package riscv.memory
 
 import chisel3._
 import chisel3.util._
-import com.carlosedp.riscvassembler.RISCVAssembler
 
 /** Simple ROM implementation for instruction memory (BIOS)
   * @param program
-  *   RV32I assembly program as a string, each instruction in a new line
+  *   RV32I bytes in hex format, one word per line
   */
 class InstructionROM(program: String) extends Module {
   val io = IO(new Bundle {
@@ -14,8 +13,7 @@ class InstructionROM(program: String) extends Module {
     val instruction = Output(UInt(32.W))
     val valid = Output(Bool())
   })
-  val romWords = RISCVAssembler
-    .fromString(program)
+  val romWords = program
     .split("\\R")
     .map(_.trim)
     .filter(_.nonEmpty)

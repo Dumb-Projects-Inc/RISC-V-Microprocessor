@@ -27,7 +27,7 @@ class RV32ITop(debug: Boolean = false) extends Module {
     // val rxd = Input(Bool()) // for uart
   })
 
-  val ROM = Module(new InstructionROM(program = Bootloader.TEST))
+  val ROM = Module(new InstructionROM(program = Bootloader.TEST_HEX))
   val MMU = Module(
     new CacheController()
   )

@@ -1,11 +1,13 @@
 package riscv.memory
 
+import com.carlosedp.riscvassembler.RISCVAssembler
+
 /** Bootloader assembly programs, this should include a way to read files later.
   */
 
 // very simple bootloader that waits for a button press and jumps to an address in memory (the program)
 object Bootloader {
-  val ROM = """
+  private val ROM = """
   addi x1, x0, 0xfff 'load some memory region
   addi x2, x0, 1000 'counter (4 bytes * 1000 = 4 KB)
   addi x3, x0, 0
@@ -22,7 +24,7 @@ object Bootloader {
     beq x3, x0, wait    'wait for button press
   jalr x0, 0(x1)      'jump to loaded address
 """
-  val TEST = """
+  private val TEST = """
   addi x1, x0, 252
   addi x0, x0, 0
   addi x0, x0, 0
@@ -75,5 +77,11 @@ object Bootloader {
   addi x0, x0, 0
   addi x0, x0, 0
 """
+  def assemble(program: String): String = {
+    RISCVAssembler
+      .fromString(program)
+  }
 
+  val TEST_HEX: String = assemble(TEST)
+  val ROM_HEX: String = assemble(ROM)
 }
