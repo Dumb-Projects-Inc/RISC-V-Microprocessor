@@ -3,6 +3,8 @@ package riscv
 import chisel3._
 import chisel3.stage.ChiselGeneratorAnnotation
 import circt.stage.{ChiselStage, FirtoolOption}
+import riscv.memory.CacheController
+import riscv.memory.InstructionROM
 
 // very simple bootloader that waits for a button press and jumps to an address in memory (the program)
 object Bootloader {

@@ -1,4 +1,4 @@
-package riscv
+package riscv.memory
 
 import chisel3._
 import com.carlosedp.riscvassembler.RISCVAssembler
