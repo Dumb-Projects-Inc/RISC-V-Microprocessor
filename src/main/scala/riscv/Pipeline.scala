@@ -10,8 +10,6 @@ object ControlSignals {
     val memOp = MemOp()
     val memSize = MemSize()
     val imm = SInt(32.W)
-    val rs1 = UInt(5.W)
-    val rs2 = UInt(5.W)
   }
   class WB extends Bundle {
     val aluInput1 = SInt(32.W)
@@ -22,8 +20,10 @@ object ControlSignals {
     val branchType = BranchType()
     val rd = UInt(5.W)
     val pc = UInt(32.W)
-    val rs1 = UInt(32.W)
-    val rs2 = UInt(32.W)
+    val rs1Data = UInt(32.W)
+    val rs2Data = UInt(32.W)
+    val rs1 = UInt(5.W)
+    val rs2 = UInt(5.W)
   }
 }
 
@@ -91,7 +91,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     bundle.ex.memOp := MemOp.Noop
     bundle.wb.writeEnable := false.B
     bundle.wb.branchType := BranchType.NO
-    bundle.ex.rs2 := 0.U
+    bundle.wb.rs2 := 0.U
     bundle.wb.rd := 0.U
     bundle
   })
@@ -114,8 +114,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dbg.get.pc := pc
   }
 
-  registers.io.readReg1 := decoder.io.ex.rs1
-  registers.io.readReg2 := decoder.io.ex.rs2
+  registers.io.readReg1 := decoder.io.wb.rs1
+  registers.io.readReg2 := decoder.io.wb.rs2
 
   ID_EX_REG.ex := decoder.io.ex
   ID_EX_REG.wb := decoder.io.wb
@@ -125,7 +125,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     ID_EX_REG.ex.memOp := MemOp.Noop
     ID_EX_REG.wb.writeEnable := false.B
     ID_EX_REG.wb.branchType := BranchType.NO
-    ID_EX_REG.ex.rs2 := 0.U
+    ID_EX_REG.wb.rs2 := 0.U
     ID_EX_REG.wb.rd := 0.U
   }
 
@@ -149,7 +149,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
   io.dataPort.dataWrite := registers.io.reg2Data
   io.dataPort.dataWrite := Mux(
-    ID_EX_REG.ex.rs2 === EX_WB_REG.wb.rd,
+    ID_EX_REG.wb.rs2 === EX_WB_REG.wb.rd,
     aluResult,
     registers.io.reg2Data
   )
@@ -160,13 +160,13 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     registers.io.reg1Data.asSInt,
     ID_EX_REG.wb.pc.asSInt
   )
-  EX_WB_REG.wb.rs1 := registers.io.reg1Data
+  EX_WB_REG.wb.rs1Data := registers.io.reg1Data
   EX_WB_REG.wb.aluInput2 := Mux(
     ID_EX_REG.ex.aluInput2Source === ALUInput2.Rs2,
     registers.io.reg2Data.asSInt,
     ID_EX_REG.ex.imm
   )
-  EX_WB_REG.wb.rs2 := registers.io.reg2Data
+  EX_WB_REG.wb.rs2Data := registers.io.reg2Data
 
   when(flush) {
     EX_WB_REG.wb.writeEnable := false.B
@@ -183,8 +183,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   aluResult := alu.io.result.asUInt
 
   val branch = Module(new BranchLogic())
-  branch.io.data1 := EX_WB_REG.wb.rs1.asSInt
-  branch.io.data2 := EX_WB_REG.wb.rs2.asSInt
+  branch.io.data1 := EX_WB_REG.wb.rs1Data.asSInt
+  branch.io.data2 := EX_WB_REG.wb.rs2Data.asSInt
   branch.io.branchType := EX_WB_REG.wb.branchType
 
   when(branch.io.takeBranch) {

@@ -44,11 +44,12 @@ class Decoder extends Module {
   })
 
   io.ex := DontCare
-  io.ex.memOp := MemOp.Noop
-  io.ex.rs1 := io.instr(19, 15)
-  io.ex.rs2 := io.instr(24, 20)
-
   io.wb := DontCare
+
+  io.ex.memOp := MemOp.Noop
+
+  io.wb.rs1 := io.instr(19, 15)
+  io.wb.rs2 := io.instr(24, 20)
   io.wb.writeEnable := false.B
   io.wb.branchType := BranchType.NO
   io.wb.rd := io.instr(11, 7)
