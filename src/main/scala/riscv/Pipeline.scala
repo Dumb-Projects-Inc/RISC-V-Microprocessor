@@ -185,26 +185,38 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     )
   )
 
-  val forwardInput1 =
-    (EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1) &&
-      (EX_WB_REG.wb.rs1 === RegNext(EX_WB_REG.wb.rd)) &&
+  val forward1 =
+    (EX_WB_REG.wb.rs1 === RegNext(EX_WB_REG.wb.rd)) &&
       RegNext(EX_WB_REG.wb.writeEnable) &&
       RegNext(EX_WB_REG.wb.rd =/= 0.U)
 
-  val forwardInput2 =
-    (EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2) &&
-      (EX_WB_REG.wb.rs2 === RegNext(EX_WB_REG.wb.rd)) &&
+  val forwardAlu1 =
+    (EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1) && forward1
+
+  val forward2 =
+    (EX_WB_REG.wb.rs2 === RegNext(EX_WB_REG.wb.rd)) &&
       RegNext(EX_WB_REG.wb.writeEnable) &&
       RegNext(EX_WB_REG.wb.rd =/= 0.U)
 
-  alu.io.a := Mux(forwardInput1, RegNext(opResult).asSInt, aluInput1)
-  alu.io.b := Mux(forwardInput2, RegNext(opResult).asSInt, aluInput2)
+  val forwardAlu2 =
+    (EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2) && forward2
+
+  alu.io.a := Mux(forwardAlu1, RegNext(opResult).asSInt, aluInput1)
+  alu.io.b := Mux(forwardAlu2, RegNext(opResult).asSInt, aluInput2)
   alu.io.op := EX_WB_REG.wb.aluOp
   aluResult := alu.io.result.asUInt
 
   val branch = Module(new BranchLogic())
-  branch.io.data1 := EX_WB_REG.wb.rs1Data.asSInt
-  branch.io.data2 := EX_WB_REG.wb.rs2Data.asSInt
+  branch.io.data1 := Mux(
+    forward1,
+    RegNext(opResult).asSInt,
+    EX_WB_REG.wb.rs1Data.asSInt
+  )
+  branch.io.data2 := Mux(
+    forward2,
+    RegNext(opResult).asSInt,
+    EX_WB_REG.wb.rs2Data.asSInt
+  )
   branch.io.branchType := EX_WB_REG.wb.branchType
 
   when(branch.io.takeBranch) {
