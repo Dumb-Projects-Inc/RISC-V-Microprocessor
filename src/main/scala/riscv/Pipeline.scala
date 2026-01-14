@@ -154,17 +154,8 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   )
 
   EX_WB_REG.wb := ID_EX_REG.wb
-  // EX_WB_REG.wb.aluInput1 := Mux(
-  //   ID_EX_REG.ex.aluInput1Source === ALUInput1.Rs1,
-  //   registers.io.reg1Data.asSInt,
-  //   ID_EX_REG.wb.pc.asSInt
-  // )
+
   EX_WB_REG.wb.rs1Data := registers.io.reg1Data
-  // EX_WB_REG.wb.aluInput2 := Mux(
-  //   ID_EX_REG.ex.aluInput2Source === ALUInput2.Rs2,
-  //   registers.io.reg2Data.asSInt,
-  //   ID_EX_REG.ex.imm
-  // )
   EX_WB_REG.wb.rs2Data := registers.io.reg2Data
 
   when(flush) {
