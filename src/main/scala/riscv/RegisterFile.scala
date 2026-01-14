@@ -3,6 +3,11 @@ package riscv
 import chisel3._
 import chisel3.util.{Valid}
 
+/** Register File implementation for RISC-V, using SyncReadMem
+  * @param debug
+  *   enable register mirroring for easy debugging (should not be synthesized to
+  *   board)
+  */
 class RegisterFile(debug: Boolean = false) extends Module {
   val io = IO(new Bundle {
     val readReg1 = Input(UInt(5.W))
@@ -30,9 +35,13 @@ class RegisterFile(debug: Boolean = false) extends Module {
     regFile.write(io.writeReg, io.writeData)
   }
 
+  // ##################################################
+  // Debugging interface, should never be synthesized to board
+  // ##################################################
   val dbg = if (debug) Some(IO(Output(Vec(32, UInt(32.W))))) else None
 
   if (debug) {
+
     val debugRegs = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
     when(io.wrEn && (io.writeReg =/= 0.U)) {
       debugRegs(io.writeReg) := io.writeData

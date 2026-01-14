@@ -9,6 +9,16 @@ class CacheLine(val blockWords: Int, val numLines: Int) extends Bundle {
   val data = Vec(blockWords, UInt(32.W))
 }
 
+/** Simple direct-mapped cache implementation. hit/miss has a one-cycle latency
+  * as well as any reads. Note this latency will affect the overall performance
+  * of the CPU, as the bus interface will have to wait for the cache to respond.
+  * before sending requests to the bus, the CPU should check if the cache hits
+  * first.
+  * @param numLines
+  *   Lines of cache (sets)
+  * @param blockwords
+  *   How many words per cache block
+  */
 class Cache(numLines: Int, blockwords: Int) extends Module {
   assert(
     isPow2(numLines),

@@ -23,6 +23,11 @@ object MemoryMap {
   // val ProgramMemoryEnd = 0x00700000 // External memory decides how much is available
 }
 
+/** CacheController using [[Cache]] and memory regions This cachecontroller
+  * implements the (Modified) Harvard architecture by separating instruction and
+  * data caches. Cache coherency is only ensured for I-cache if fence.i is
+  * called (needs to be implemented).
+  */
 class CacheController() extends Module {
   val io = IO(new Bundle {
     val instrPort = Flipped(new riscv.instrPort())
