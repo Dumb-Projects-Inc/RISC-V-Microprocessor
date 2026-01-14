@@ -2,6 +2,7 @@ package riscv
 
 import chisel3._
 import chisel3.util._
+import riscv.Pipeline.EX_WB
 
 object ControlSignals {
   class EX extends Bundle {
@@ -196,12 +197,14 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val forwardInput1 =
     (EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1) &&
       (EX_WB_REG.wb.rs1 === RegNext(EX_WB_REG.wb.rd)) &&
-      RegNext(EX_WB_REG.wb.writeEnable)
+      RegNext(EX_WB_REG.wb.writeEnable) &&
+      RegNext(EX_WB_REG.wb.rd =/= 0.U)
 
   val forwardInput2 =
     (EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2) &&
       (EX_WB_REG.wb.rs2 === RegNext(EX_WB_REG.wb.rd)) &&
-      RegNext(EX_WB_REG.wb.writeEnable)
+      RegNext(EX_WB_REG.wb.writeEnable) &&
+      RegNext(EX_WB_REG.wb.rd =/= 0.U)
 
   alu.io.a := Mux(forwardInput1, RegNext(opResult).asSInt, aluInput1)
   alu.io.b := Mux(forwardInput2, RegNext(opResult).asSInt, aluInput2)

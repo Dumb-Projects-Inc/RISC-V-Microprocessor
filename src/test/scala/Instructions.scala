@@ -169,70 +169,6 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(100.U)
       }
     }
-
-    // it("should work with LUI") {
-    //   val input =
-    //     """
-    //    lui x1, 0x12345
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    addi x0, x0, 0
-    //    """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(10)
-    //
-    //     dut.io.dbg(1).expect(0x12345000.U)
-    //   }
-    // }
-    // it("should handle function calls (JAL + JALR)") {
-    //   val input =
-    //     """
-    //     addi x5, x0, 10    // Init x5 = 10
-    //     jal x1, func       // Jump to func, x1 = PC+4
-    //     addi x5, x5, 1     // This should run AFTER return (x5 = 20 + 1 = 21)
-    //     jal x0, end        // Jump to end
-    //     func:
-    //     addi x5, x5, 10    // x5 = 20
-    //     jalr x0, x1, 0     // Return to address in x1
-    //     end:
-    //     addi x0, x0, 0
-    //     """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(20)
-    //
-    //     dut.io.dbg(5).expect(21.U)
-    //   }
-    // }
-    //
-    // it("should flush pipeline on branch") {
-    //   val input =
-    //     """
-    //       addi x1, x0, 1
-    //       beq x0,x0, skip
-    //       addi x1, x1, 100
-    //       addi x1, x1, 100
-    //       addi x1, x1, 100
-    //       skip:
-    //       addi x1, x1, 1
-    //     """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //     dut.clock.step(20)
-    //
-    //     dut.io.dbg(1).expect(2.U)
-    //   }
-    // }
-    //
     it("should handle negative memory offsets (LW/SW)") {
       val input =
         """
@@ -257,24 +193,6 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(5).expect(0xbb.U)
       }
     }
-
-    // it("should construct large values using LUI and ADDI") {
-    //   val input =
-    //     """
-    //     lui x1, 0x12345      // x1 = 0x12345000
-    //     addi x1, x1, 0x678   // x1 = 0x12345678
-    //     """
-    //   simulate(new TestTop(input)) { dut =>
-    //     dut.reset.poke(true.B)
-    //     dut.clock.step(1)
-    //     dut.reset.poke(false.B)
-    //
-    //     dut.clock.step(10)
-    //
-    //     dut.io.dbg(1).expect(0x12345678.U)
-    //   }
-    // }
-    //
     it("should handle not-taken branches correctly") {
       val input =
         """
@@ -303,8 +221,8 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(5.U)
       }
     }
-
   }
+
   describe("Pipeline Hazards & Forwarding") {
     it("should forward ALU result to memory store") {
       val input =
@@ -380,6 +298,28 @@ class Instructions extends AnyFunSpec with ChiselSim {
       simulate(new TestTop(input)) { dut =>
         dut.clock.step(10)
         dut.io.dbg(1).expect(0.U) // x3 should be 100
+      }
+    }
+    it("should NOT forward values written to x0") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x0, x1, 20
+        add  x2, x0, x1
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+
+        // x2 should be 10 (0 + 10), NOT 40 (30 + 10)
+        dut.io.dbg(2).expect(10.U)
       }
     }
   }
