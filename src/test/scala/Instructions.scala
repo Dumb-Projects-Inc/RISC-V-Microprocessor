@@ -201,12 +201,14 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
-        beq x1, x2, skip    // Should NOT take branch (10 != 20)
-        addi x3, x0, 5      // Should execute
+        beq x1, x2, skip
+        addi x3, x0, 5
         jal x0, end
         skip:
-        addi x3, x0, 99     // Should NOT execute
+        addi x3, x0, 99
         end:
+        addi x0, x0, 0
+        addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
@@ -221,6 +223,91 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(5.U)
       }
     }
+    it("should execute LUI correctly") {
+      val input =
+        """
+        lui x1, 0x12345
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+        dut.io.dbg(1).expect("h12345000".U)
+      }
+    }
+
+    it("should combine LUI and ADDI") {
+      val input =
+        """
+        lui x1, 0x12345
+        addi x1, x1, 0x678
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+        dut.io.dbg(1).expect("h12345678".U)
+      }
+    }
+
+    it("should execute JALR (Computed Jump)") {
+      val input =
+        """
+        addi x1, x0, 16
+        jalr x0, x1, 0
+        addi x2, x0, 0xAA
+        addi x2, x0, 0xBB
+        addi x2, x0, 0xCC 
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(20)
+        dut.io.dbg(2).expect(0xcc.U)
+      }
+    }
+
+    it("should execute JALR with Link (Function Call return setup)") {
+      val input =
+        """
+        addi x1, x0, 16
+        jalr x2, x1, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x3, x2, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(20)
+        dut.io.dbg(2).expect(8.U)
+        dut.io
+          .dbg(3)
+          .expect(8.U)
+      }
+    }
   }
 
   describe("Pipeline Hazards & Forwarding") {
@@ -231,6 +318,8 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x2, x0, 42
         sw   x2, 0(x1)
         lw   x3, 0(x1)
+        addi x0, x0, 0
+        addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
@@ -253,6 +342,9 @@ class Instructions extends AnyFunSpec with ChiselSim {
         add  x5, x4, x4
         addi x0, x0, 0
         addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
         """
 
       simulate(new TestTop(input)) { dut =>
@@ -272,6 +364,10 @@ class Instructions extends AnyFunSpec with ChiselSim {
         lw   x3, 0(x1)
         addi x4, x3, 5
         addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
         """
 
       simulate(new TestTop(input)) { dut =>
@@ -290,6 +386,9 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x1, x0, 104
         addi x1, x0, 108
         end:
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
@@ -320,6 +419,44 @@ class Instructions extends AnyFunSpec with ChiselSim {
 
         // x2 should be 10 (0 + 10), NOT 40 (30 + 10)
         dut.io.dbg(2).expect(10.U)
+      }
+    }
+    it("should handle Branch condition hazard (Forwarding to Branch)") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x2, x0, 10
+        beq x1, x2, taken   // Should take branch
+        addi x3, x0, 0xBAD  // Fail if executed
+        jal x0, end
+        taken:
+        addi x3, x0, 0x600D // Success
+        end:
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(20)
+        dut.io.dbg(3).expect(0x600d.U)
+      }
+    }
+    it("should forward LUI result to ADDI") {
+      val input =
+        """
+        lui x1, 0x00001     // x1 = 4096
+        addi x2, x1, 4      // x2 = 4100 (Dependency on x1)
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+        dut.io.dbg(2).expect(4100.U)
       }
     }
   }
