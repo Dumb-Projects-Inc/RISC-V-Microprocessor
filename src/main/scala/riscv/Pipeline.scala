@@ -148,11 +148,11 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
   io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
   io.dataPort.dataWrite := registers.io.reg2Data
-  // io.dataPort.dataWrite := Mux(
-  //   ID_EX_REG.ex.rs2 === EX_WB_REG.wb.rd,
-  //   registers.io.reg2Data,
-  //   aluResult
-  // )
+  io.dataPort.dataWrite := Mux(
+    ID_EX_REG.ex.rs2 === EX_WB_REG.wb.rd,
+    aluResult,
+    registers.io.reg2Data
+  )
 
   EX_WB_REG.wb := ID_EX_REG.wb
   EX_WB_REG.wb.aluInput1 := Mux(

@@ -357,21 +357,40 @@ class Instructions extends AnyFunSpec with ChiselSim {
     //     }
     //   }
     //
-    //   it("should correctly handle Store-to-Load forwarding via memory") {
-    //     val input =
-    //       """
+    // it("should correctly handle Store-to-Load forwarding via memory") {
+    //   val input =
+    //     """
     //        addi x1, x0, 42
     //        sw   x1, 0(x0)
     //        lw   x2, 0(x0)
     //        """
-    //     simulate(new TestTop(input)) { dut =>
-    //       dut.reset.poke(true.B)
-    //       dut.clock.step(1)
-    //       dut.reset.poke(false.B)
-    //       dut.clock.step(15)
-    //       dut.io.dbg(2).expect(42.U)
-    //     }
+    //   simulate(new TestTop(input)) { dut =>
+    //     dut.reset.poke(true.B)
+    //     dut.clock.step(1)
+    //     dut.reset.poke(false.B)
+    //     dut.clock.step(15)
+    //     dut.io.dbg(2).expect(42.U)
     //   }
+    // }
+    it("should forward ALU result to memory store") {
+      val input =
+        """
+        addi x1, x0, 4  
+        addi x2, x0, 42
+        sw   x2, 0(x1)
+        lw   x3, 0(x1)
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+        dut.io.dbg(3).expect(42.U)
+      }
+    }
     it("should flush on taken Branch") {
       val input =
         """
