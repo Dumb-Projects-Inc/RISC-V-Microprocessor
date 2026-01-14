@@ -60,11 +60,11 @@ class Decoder extends Module {
   val immGen = Module(new ImmGen)
   immGen.io.instr := io.instr
   immGen.io.format := format
-  io.ex.imm := immGen.io.out
+  io.wb.imm := immGen.io.out
 
   when(io.instr === Instruction.ADDI) {
-    io.ex.aluInput1Source := ALUInput1.Rs1
-    io.ex.aluInput2Source := ALUInput2.Imm
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
@@ -72,15 +72,15 @@ class Decoder extends Module {
   }
   when(io.instr === Instruction.ADD) {
     io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput1Source := ALUInput1.Rs1
-    io.ex.aluInput2Source := ALUInput2.Rs2
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.LUI) {
     io.wb.aluOp := ALUOp.Noop
-    io.ex.aluInput2Source := ALUInput2.Imm
+    io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.U
@@ -109,8 +109,8 @@ class Decoder extends Module {
   // Branches
   when(io.instr === Instruction.JAL) {
     io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput1Source := ALUInput1.Pc
-    io.ex.aluInput2Source := ALUInput2.Imm
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.branchType := BranchType.J
     io.wb.writeSource := WriteSource.Pc
     io.wb.writeEnable := true.B
@@ -118,22 +118,22 @@ class Decoder extends Module {
   }
   when(io.instr === Instruction.JALR) {
     io.wb.aluOp := ALUOp.Add
-    io.ex.aluInput2Source := ALUInput2.Imm
+    io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.branchType := BranchType.J
     io.wb.writeSource := WriteSource.Pc
     io.wb.writeEnable := true.B
     format := Format.I
   }
   when(io.instr === Instruction.BEQ) {
-    io.ex.aluInput1Source := ALUInput1.Pc
-    io.ex.aluInput2Source := ALUInput2.Imm
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.branchType := BranchType.BEQ
     format := Format.B
   }
   when(io.instr === Instruction.BNE) {
-    io.ex.aluInput1Source := ALUInput1.Pc
-    io.ex.aluInput2Source := ALUInput2.Imm
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.aluOp := ALUOp.Add
     io.wb.branchType := BranchType.BNE
     format := Format.B

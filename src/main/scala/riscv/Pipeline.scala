@@ -5,23 +5,21 @@ import chisel3.util._
 
 object ControlSignals {
   class EX extends Bundle {
-    val aluInput1Source = ALUInput1()
-    val aluInput2Source = ALUInput2()
     val memOp = MemOp()
     val memSize = MemSize()
-    val imm = SInt(32.W)
   }
   class WB extends Bundle {
-    val aluInput1 = SInt(32.W)
-    val aluInput2 = SInt(32.W)
+    val aluInput1Source = ALUInput1()
+    val aluInput2Source = ALUInput2()
+    val pc = UInt(32.W)
+    val imm = SInt(32.W)
+    val rs1Data = UInt(32.W)
+    val rs2Data = UInt(32.W)
     val aluOp = ALUOp()
     val writeSource = WriteSource()
     val writeEnable = Bool()
     val branchType = BranchType()
     val rd = UInt(5.W)
-    val pc = UInt(32.W)
-    val rs1Data = UInt(32.W)
-    val rs2Data = UInt(32.W)
     val rs1 = UInt(5.W)
     val rs2 = UInt(5.W)
   }
@@ -143,7 +141,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dontTouch(EX_WB_REG)
   }
 
-  val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
+  val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.wb.imm
   io.dataPort.addr := memoryAddress.asUInt
   io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
   io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
@@ -155,17 +153,17 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   )
 
   EX_WB_REG.wb := ID_EX_REG.wb
-  EX_WB_REG.wb.aluInput1 := Mux(
-    ID_EX_REG.ex.aluInput1Source === ALUInput1.Rs1,
-    registers.io.reg1Data.asSInt,
-    ID_EX_REG.wb.pc.asSInt
-  )
+  // EX_WB_REG.wb.aluInput1 := Mux(
+  //   ID_EX_REG.ex.aluInput1Source === ALUInput1.Rs1,
+  //   registers.io.reg1Data.asSInt,
+  //   ID_EX_REG.wb.pc.asSInt
+  // )
   EX_WB_REG.wb.rs1Data := registers.io.reg1Data
-  EX_WB_REG.wb.aluInput2 := Mux(
-    ID_EX_REG.ex.aluInput2Source === ALUInput2.Rs2,
-    registers.io.reg2Data.asSInt,
-    ID_EX_REG.ex.imm
-  )
+  // EX_WB_REG.wb.aluInput2 := Mux(
+  //   ID_EX_REG.ex.aluInput2Source === ALUInput2.Rs2,
+  //   registers.io.reg2Data.asSInt,
+  //   ID_EX_REG.ex.imm
+  // )
   EX_WB_REG.wb.rs2Data := registers.io.reg2Data
 
   when(flush) {
@@ -177,8 +175,18 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   // STAGE: ALU and WB
 
   val alu = Module(new ALU())
-  alu.io.a := EX_WB_REG.wb.aluInput1
-  alu.io.b := EX_WB_REG.wb.aluInput2
+  val aluInput1 = Mux(
+    EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1,
+    EX_WB_REG.wb.rs1Data,
+    EX_WB_REG.wb.pc
+  ).asSInt
+  val aluInput2 = Mux(
+    EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2,
+    EX_WB_REG.wb.rs2Data.asSInt,
+    EX_WB_REG.wb.imm
+  )
+  alu.io.a := aluInput1
+  alu.io.b := aluInput2
   alu.io.op := EX_WB_REG.wb.aluOp
   aluResult := alu.io.result.asUInt
 
