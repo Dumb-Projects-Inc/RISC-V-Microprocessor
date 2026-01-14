@@ -11,10 +11,11 @@ lazy val isaSim = RootProject(
 lazy val root = (project in file("."))
   .settings(
     name := "RISC-V-Microprocessor",
+    resolvers += "jitpack" at "https://jitpack.io",
     libraryDependencies ++= Seq(
       "org.chipsalliance" %% "chisel" % chiselVersion,
       "org.scalatest" %% "scalatest" % "3.2.19" % "test",
-      "com.carlosedp" %% "riscvassembler" % "1.10.0"
+      "com.github.push-and-pray" %% "riscvassembler" % "jp-SNAPSHOT"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",

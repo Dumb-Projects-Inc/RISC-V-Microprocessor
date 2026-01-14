@@ -2,48 +2,37 @@ package riscv
 
 import chisel3._
 import chisel3.util._
+import riscv.Pipeline.EX_WB
 
-object Pipeline {
-  class IF_ID extends Bundle {
-    val valid = Bool()
-    val instr = UInt(32.W)
-    val pc = UInt(32.W)
+object ControlSignals {
+  class EX extends Bundle {
+    val memOp = MemOp()
+    val memSize = MemSize()
   }
-  class ID_EX extends Bundle {
-    val valid = Bool()
+  class WB extends Bundle {
+    val aluInput1Source = ALUInput1()
+    val aluInput2Source = ALUInput2()
+    val pc = UInt(32.W)
+    val imm = SInt(32.W)
+    val rs1Data = UInt(32.W)
+    val rs2Data = UInt(32.W)
+    val aluOp = ALUOp()
+    val writeSource = WriteSource()
+    val writeEnable = Bool()
+    val branchType = BranchType()
+    val rd = UInt(5.W)
     val rs1 = UInt(5.W)
     val rs2 = UInt(5.W)
-    val rd = UInt(5.W)
-    val pc = UInt(32.W)
-    val imm = SInt(32.W)
-    val control = new Bundle {
-      val ex = new ControlSignals.EX
-      val mem = new ControlSignals.MEM
-      val wb = new ControlSignals.WB
-    }
   }
-  class EX_MEM extends Bundle {
-    val valid = Bool()
-    val pc = UInt(32.W)
-    val rd = UInt(5.W)
-    val aluResult = UInt(32.W)
-    val imm = SInt(32.W)
-    val memData = UInt(32.W)
-    val control = new Bundle {
-      val mem = new ControlSignals.MEM
-      val wb = new ControlSignals.WB
-    }
+}
+
+object Pipeline {
+  class ID_EX extends Bundle {
+    val ex = new ControlSignals.EX
+    val wb = new ControlSignals.WB
   }
-  class MEM_WB extends Bundle {
-    val valid = Bool()
-    val pc = UInt(32.W)
-    val rd = UInt(5.W)
-    val imm = SInt(32.W)
-    val aluResult = UInt(32.W)
-    // val memOut = UInt(32.W) // Also not included because of one cycle read delay
-    val control = new Bundle {
-      val wb = new ControlSignals.WB
-    }
+  class EX_WB extends Bundle {
+    val wb = new ControlSignals.WB
   }
 }
 
@@ -75,257 +64,168 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     val dataPort = new dataPort()
   })
 
-  val dbg = if (debug) Some(IO(Output(new Debug()))) else None
+  // Forward declarations
+  val aluResult = Wire(UInt(32.W))
+  val flush = WireDefault(false.B)
 
-  val hazardUnit = Module(new HazardUnit())
-  val branchLogic = Module(new BranchLogic())
-  val forwardingUnit = Module(new ForwardingUnit())
-  hazardUnit.io.exRedirect := branchLogic.io.takeBranch
-  val alu = Module(new ALU())
-  val aluResult = alu.io.result.asUInt
+  // STAGE: Fetch instruction
   val pc = RegInit(0.U(32.W))
 
-  when(hazardUnit.io.out.stallPC) {
-    pc := pc
-  }.elsewhen(branchLogic.io.takeBranch) {
-    pc := aluResult
-  }.otherwise {
-    pc := pc + 4.U
+  val nextPc = WireDefault(pc + 4.U)
+  pc := nextPc
+
+  val first = RegNext(false.B, true.B)
+  when(first) {
+    nextPc := pc
+    flush := true.B
   }
-  io.instrPort.addr := pc
+
+  io.instrPort.addr := nextPc
   io.instrPort.enable := true.B
 
-  val regFile = Module(new RegisterFile(debug))
-
-  if (debug) {
-    dbg.get.regs := regFile.dbg.get
-    dbg.get.pc := pc
-  }
-  if (debugPrint) {
-    printf("PC: %x\n", pc)
-    for (i <- 0 until 32) {
-      printf("x%d: %x ", i.U, regFile.dbg.get(i))
-      if ((i + 1) % 8 == 0) printf("\n")
-    }
-  }
-
-  // IF
-
-  val IF_ID = RegInit({
-    val bundle = Wire(new Pipeline.IF_ID())
-    bundle := DontCare
-    bundle.valid := false.B
-    bundle
-  })
-
-  if (debug) {
-    dontTouch(IF_ID)
-  }
-
-  // ID
-  val decoder = Module(new Decoder())
-  decoder.io.instr := IF_ID.instr
-
-  regFile.io.readReg1 := decoder.io.rs1
-  regFile.io.readReg2 := decoder.io.rs2
-
-  val ID_EX = RegInit({
+  // STAGE: Decode control signals and fetch registers
+  val ID_EX_REG = RegInit({
     val bundle = Wire(new Pipeline.ID_EX())
     bundle := DontCare
-    bundle.valid := false.B
+    bundle.ex.memOp := MemOp.Noop
+    bundle.wb.writeEnable := false.B
+    bundle.wb.branchType := BranchType.NO
+    bundle.wb.rs2 := 0.U
+    bundle.wb.rd := 0.U
+    bundle
+  })
+  if (debug) {
+    dontTouch(ID_EX_REG)
+  }
+
+  val decoder = Module(new Decoder)
+  decoder.io.instr := Mux(flush, Instruction.NOP, io.instrPort.instr)
+
+  if (debug) {
+    dontTouch(io.instrPort.instr)
+  }
+
+  val registers = Module(new RegisterFile(debug))
+
+  val dbg = if (debug) Some(IO(Output(new Debug()))) else None
+  if (debug) {
+    dbg.get.regs := registers.dbg.get
+    dbg.get.pc := pc
+  }
+
+  registers.io.readReg1 := decoder.io.wb.rs1
+  registers.io.readReg2 := decoder.io.wb.rs2
+
+  ID_EX_REG.ex := decoder.io.ex
+  ID_EX_REG.wb := decoder.io.wb
+  ID_EX_REG.wb.pc := pc
+
+  when(flush) {
+    ID_EX_REG.ex.memOp := MemOp.Noop
+    ID_EX_REG.wb.writeEnable := false.B
+    ID_EX_REG.wb.branchType := BranchType.NO
+    ID_EX_REG.wb.rs2 := 0.U
+    ID_EX_REG.wb.rd := 0.U
+  }
+
+  // STAGE: Retrieve memory and prepare ALU inputs
+  val EX_WB_REG = RegInit({
+    val bundle = Wire(new Pipeline.EX_WB())
+    bundle := DontCare
+    bundle.wb.writeEnable := false.B
+    bundle.wb.branchType := BranchType.NO
+    bundle.wb.rd := 0.U
     bundle
   })
 
   if (debug) {
-    dontTouch(ID_EX)
+    dontTouch(EX_WB_REG)
   }
 
-  hazardUnit.io.id.rs1 := decoder.io.rs1
-  hazardUnit.io.id.rs2 := decoder.io.rs2
-  hazardUnit.io.id.usesRs1 := decoder.io.uses.rs1
-  hazardUnit.io.id.usesRs2 := decoder.io.uses.rs2
+  val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.wb.imm
+  io.dataPort.addr := memoryAddress.asUInt
+  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
+  io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
+  io.dataPort.dataWrite := registers.io.reg2Data
+  io.dataPort.dataWrite := Mux(
+    ID_EX_REG.wb.rs2 === EX_WB_REG.wb.rd,
+    aluResult,
+    registers.io.reg2Data
+  )
 
-  when(hazardUnit.io.out.stallIFID) {
-    IF_ID := IF_ID
-  }.elsewhen(hazardUnit.io.out.flushIFID) {
-    IF_ID.instr := 0x00000013.U
-    IF_ID.pc := 0.U
-    IF_ID.valid := false.B
-  }.otherwise {
-    IF_ID.valid := true.B
-    IF_ID.instr := io.instrPort.instr
-    IF_ID.pc := RegNext(pc)
+  EX_WB_REG.wb := ID_EX_REG.wb
+
+  EX_WB_REG.wb.rs1Data := registers.io.reg1Data
+  EX_WB_REG.wb.rs2Data := registers.io.reg2Data
+
+  when(flush) {
+    EX_WB_REG.wb.writeEnable := false.B
+    EX_WB_REG.wb.branchType := BranchType.NO
+    EX_WB_REG.wb.rd := 0.U
   }
 
-  ID_EX.pc := IF_ID.pc
-  ID_EX.valid := IF_ID.valid
-  ID_EX.rs1 := decoder.io.rs1
-  ID_EX.rs2 := decoder.io.rs2
+  // STAGE: ALU and WB
 
-  ID_EX.imm := decoder.io.imm
-  ID_EX.rd := decoder.io.rd
+  val alu = Module(new ALU())
+  val aluInput1 = Mux(
+    EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1,
+    EX_WB_REG.wb.rs1Data,
+    EX_WB_REG.wb.pc
+  ).asSInt
+  val aluInput2 = Mux(
+    EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2,
+    EX_WB_REG.wb.rs2Data.asSInt,
+    EX_WB_REG.wb.imm
+  )
 
-  ID_EX.control.ex := decoder.io.control.ex
-  ID_EX.control.mem := decoder.io.control.mem
-  ID_EX.control.wb := decoder.io.control.wb
-
-  when(hazardUnit.io.out.flushIDEX) {
-    ID_EX.control.mem.memOp := MemOp.Noop
-    ID_EX.control.wb.writeEnable := false.B
-    ID_EX.valid := false.B
-    ID_EX.control.ex.branchType := BranchType.NO
-  }
-  // EX
-  val EX_MEM = RegInit({
-    val bundle = Wire(new Pipeline.EX_MEM())
-    bundle := DontCare
-    bundle.valid := false.B
-    bundle
-  })
-
-  val MEM_WB = RegInit({
-    val bundle = Wire(new Pipeline.MEM_WB())
-    bundle := DontCare
-    bundle.valid := false.B
-    bundle
-  })
-
-  forwardingUnit.io.dec.rs1 := ID_EX.rs1
-  forwardingUnit.io.dec.rs2 := ID_EX.rs2
-
-  forwardingUnit.io.dec.uses.aluRs1 := ID_EX.control.ex.aluInput1 === ALUInput1.Rs1
-  forwardingUnit.io.dec.uses.aluRs2 := ID_EX.control.ex.aluInput2 === ALUInput2.Rs2
-  val isBranch =
-    ID_EX.control.ex.branchType =/= BranchType.NO && ID_EX.control.ex.branchType =/= BranchType.J
-  forwardingUnit.io.dec.uses.bjRs1 := isBranch
-  forwardingUnit.io.dec.uses.bjRs2 := isBranch
-  forwardingUnit.io.dec.uses.storeDataRs2 := ID_EX.control.mem.memOp === MemOp.Store
-  forwardingUnit.io.dec.uses.idRs1 := false.B
-  forwardingUnit.io.dec.uses.idRs2 := false.B
-  forwardingUnit.io.exe.rd := EX_MEM.rd
-  forwardingUnit.io.exe.regWrite := EX_MEM.control.wb.writeEnable
-  forwardingUnit.io.exe.isLoad := EX_MEM.control.mem.memOp === MemOp.Load
-  forwardingUnit.io.mem.rd := MEM_WB.rd
-  forwardingUnit.io.mem.regWrite := MEM_WB.control.wb.writeEnable
-  forwardingUnit.io.mem.isLoad := false.B
-  forwardingUnit.io.wb := DontCare
-  forwardingUnit.io.wb.regWrite := false.B
-
-  val forwardedR1 =
-    MuxLookup(forwardingUnit.io.sel.data1ALUSel, regFile.io.reg1Data.asSInt)(
-      Seq(
-        ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
-        ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt
-      )
-    )
-
-  val aluInput1 =
-    MuxLookup(ID_EX.control.ex.aluInput1, 0.S)(
-      Seq(
-        ALUInput1.Rs1 -> forwardedR1, // We dont read from pipeline register here, since reg reads are naturally behind by one clk
-        ALUInput1.Pc -> ID_EX.pc.asSInt
-      )
-    )
-
-  val forwardedR2 =
-    MuxLookup(forwardingUnit.io.sel.data2ALUSel, regFile.io.reg2Data.asSInt)(
-      Seq(
-        ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
-        ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt
-      )
-    )
-
-  val aluInput2 =
-    MuxLookup(ID_EX.control.ex.aluInput2, 0.S)(
-      Seq(
-        ALUInput2.Rs2 -> forwardedR2,
-        ALUInput2.Imm -> ID_EX.imm
-      )
-    )
-
-  alu.io.a := aluInput1
-  alu.io.b := aluInput2
-  alu.io.op := ID_EX.control.ex.aluOp
-
-  hazardUnit.io.ex.rd := ID_EX.rd
-  hazardUnit.io.ex.isLoad := ID_EX.control.mem.memOp === MemOp.Load
-  branchLogic.io.data1 := MuxLookup(
-    forwardingUnit.io.sel.data1BJSel,
-    regFile.io.reg1Data.asSInt
-  )(
+  val opResult = MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
     Seq(
-      ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
-      ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt // Forward the data being written back
+      WriteSource.Memory -> io.dataPort.dataRead,
+      WriteSource.Pc -> (EX_WB_REG.wb.pc + 4.U)
     )
   )
-  branchLogic.io.data2 := MuxLookup(
-    forwardingUnit.io.sel.data2BJSel,
-    regFile.io.reg2Data.asSInt
-  )(
-    Seq(
-      ForwardingUnit.Sel.exe -> EX_MEM.aluResult.asSInt,
-      ForwardingUnit.Sel.mem -> regFile.io.writeData.asSInt // Forward the data being written back
-    )
+
+  val forward1 =
+    (EX_WB_REG.wb.rs1 === RegNext(EX_WB_REG.wb.rd)) &&
+      RegNext(EX_WB_REG.wb.writeEnable) &&
+      RegNext(EX_WB_REG.wb.rd =/= 0.U)
+
+  val forwardAlu1 =
+    (EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1) && forward1
+
+  val forward2 =
+    (EX_WB_REG.wb.rs2 === RegNext(EX_WB_REG.wb.rd)) &&
+      RegNext(EX_WB_REG.wb.writeEnable) &&
+      RegNext(EX_WB_REG.wb.rd =/= 0.U)
+
+  val forwardAlu2 =
+    (EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2) && forward2
+
+  alu.io.a := Mux(forwardAlu1, RegNext(opResult).asSInt, aluInput1)
+  alu.io.b := Mux(forwardAlu2, RegNext(opResult).asSInt, aluInput2)
+  alu.io.op := EX_WB_REG.wb.aluOp
+  aluResult := alu.io.result.asUInt
+
+  val branch = Module(new BranchLogic())
+  branch.io.data1 := Mux(
+    forward1,
+    RegNext(opResult).asSInt,
+    EX_WB_REG.wb.rs1Data.asSInt
   )
-  branchLogic.io.branchType := ID_EX.control.ex.branchType
+  branch.io.data2 := Mux(
+    forward2,
+    RegNext(opResult).asSInt,
+    EX_WB_REG.wb.rs2Data.asSInt
+  )
+  branch.io.branchType := EX_WB_REG.wb.branchType
 
-  if (debug) {
-    dontTouch(EX_MEM)
+  when(branch.io.takeBranch) {
+    nextPc := aluResult
+    flush := true.B
   }
 
-  EX_MEM.valid := ID_EX.valid
-  EX_MEM.pc := ID_EX.pc
-  EX_MEM.rd := ID_EX.rd
-  EX_MEM.imm := ID_EX.imm
+  registers.io.writeData := opResult
+  registers.io.wrEn := EX_WB_REG.wb.writeEnable
+  registers.io.writeReg := EX_WB_REG.wb.rd
 
-  EX_MEM.aluResult := aluResult
-
-  val storeData =
-    MuxLookup(forwardingUnit.io.sel.dataMemSel, regFile.io.reg2Data)(
-      Seq(
-        ForwardingUnit.Sel.exe -> EX_MEM.aluResult,
-        ForwardingUnit.Sel.mem -> regFile.io.writeData
-      )
-    )
-
-  EX_MEM.memData := storeData
-
-  EX_MEM.control.mem := ID_EX.control.mem
-  EX_MEM.control.wb := ID_EX.control.wb
-
-  // MEM
-
-  if (debug) {
-    dontTouch(MEM_WB)
-  }
-
-  io.dataPort.addr := EX_MEM.aluResult
-  io.dataPort.dataWrite := EX_MEM.memData
-  io.dataPort.enable := EX_MEM.control.mem.memOp =/= MemOp.Noop
-  io.dataPort.writeEn := (EX_MEM.control.mem.memOp === MemOp.Store) && EX_MEM.valid
-
-  MEM_WB.valid := EX_MEM.valid
-  MEM_WB.pc := EX_MEM.pc
-  MEM_WB.rd := EX_MEM.rd
-  MEM_WB.imm := EX_MEM.imm
-  MEM_WB.aluResult := EX_MEM.aluResult
-
-  MEM_WB.control.wb := EX_MEM.control.wb
-
-  // WB
-  regFile.io.writeData := DontCare
-  regFile.io.wrEn := MEM_WB.control.wb.writeEnable && MEM_WB.valid
-  regFile.io.writeReg := MEM_WB.rd
-
-  switch(MEM_WB.control.wb.writeSource) {
-    is(WriteSource.ALU) {
-      regFile.io.writeData := MEM_WB.aluResult
-    }
-    is(WriteSource.Memory) {
-      regFile.io.writeData := io.dataPort.dataRead
-    }
-    is(WriteSource.Pc) {
-      regFile.io.writeData := MEM_WB.pc + 4.U
-    }
-  }
 }
