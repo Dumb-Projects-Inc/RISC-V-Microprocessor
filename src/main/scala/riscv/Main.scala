@@ -3,7 +3,6 @@ package riscv
 import chisel3._
 import chisel3.stage.ChiselGeneratorAnnotation
 import circt.stage.{ChiselStage, FirtoolOption}
-import com.carlosedp.riscvassembler.RISCVAssembler
 
 // very simple bootloader that waits for a button press and jumps to an address in memory (the program)
 object Bootloader {
@@ -78,7 +77,6 @@ object Bootloader {
   addi x0, x0, 0
 """
 
-  val romhex = RISCVAssembler.fromString(TEST.stripMargin)
 }
 
 class RV32Debug extends Bundle {
@@ -98,9 +96,11 @@ class RV32ITop(debug: Boolean = false) extends Module {
 
   val dbg = if (debug) Some(IO(Output(new RV32Debug()))) else None
 
+  val ROM = Module(new InstructionROM(program = Bootloader.TEST))
   val MMU = Module(
-    new CacheController(ROMProgram = Bootloader.romhex)
-  ) // 64 KB memory
+    new CacheController()
+  )
+
   val pipeline = Module(new Pipeline(debug = debug))
   if (debug) {
     dbg.get.instrAddr := pipeline.dbg.get.pc
@@ -109,6 +109,9 @@ class RV32ITop(debug: Boolean = false) extends Module {
 
   pipeline.io.instrPort <> MMU.io.instrPort
   pipeline.io.dataPort <> MMU.io.dataPort
+
+  ROM.io.addr := pipeline.io.instrPort.addr
+  MMU.io.ROMIn := ROM.io.instruction
   val led = RegInit(255.U(16.W))
   when(pipeline.io.dataPort.enable) {
     led := pipeline.io.dataPort.addr(15, 0)

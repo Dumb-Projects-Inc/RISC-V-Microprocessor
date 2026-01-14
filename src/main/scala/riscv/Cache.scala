@@ -2,6 +2,7 @@ package riscv
 
 import chisel3._
 import chisel3.util._
+import lib.Bus
 
 class CacheLine(val blockWords: Int, val numLines: Int) extends Bundle {
   val valid = Bool()
@@ -85,24 +86,18 @@ object MemoryMap {
   // val ProgramMemoryEnd = 0x00700000 // External memory decides how much is available
 }
 
-class CacheController(ROMProgram: String) extends Module {
+class CacheController() extends Module {
   val io = IO(new Bundle {
     val instrPort = Flipped(new instrPort())
+    val ROMIn = Input(UInt(32.W))
     val dataPort = Flipped(new dataPort())
+    // val busPort = Bus.RequestPort()
     // val flush = Input(Bool()) // fence.i instruction
   })
 
   io.instrPort.instr := DontCare
   io.dataPort.dataRead := DontCare
-
-  val romWords = ROMProgram
-    .split("\\R")
-    .map(_.trim)
-    .filter(_.nonEmpty)
-    .map(h => BigInt(h, 16).U(32.W))
-    .toSeq
-
-  val ROM = VecInit(romWords) // Simple ROM implementation for BIOS
+  // io.busPort.init()
 
   // Check region of instruction fetch
   def getRegion(addr: UInt): MemoryRegions.Type =
@@ -122,10 +117,12 @@ class CacheController(ROMProgram: String) extends Module {
   val IDat = SyncReadMem(4096, UInt(32.W)) // 16 KB Instruction Data Memory
 
   when(io.instrPort.enable) {
+    // Always request instruction from bus
+    // io.busPort.readRequest(io.instrPort.addr)
+
     when(instrRegion === MemoryRegions.ROM) {
-      io.instrPort.instr := RegNext(
-        ROM(io.instrPort.addr(31, 2))
-      ) // word aligned
+      // This should not stall
+      io.instrPort.instr := io.ROMIn
 
     }.elsewhen(instrRegion === MemoryRegions.Peripherals) {
       // instructions from peripherals not supported
@@ -143,9 +140,11 @@ class CacheController(ROMProgram: String) extends Module {
 
   val DDat = SyncReadMem(16384, UInt(32.W)) // 64 KB Data Memory
   when(io.dataPort.enable) {
+    // io.busPort.readRequest(io.dataPort.addr)
+
     when(dataRegion === MemoryRegions.ROM) {
       // Data access to ROM (should be read-only)
-      io.dataPort.dataRead := RegNext(ROM(io.dataPort.addr(31, 2)))
+      io.instrPort.instr := io.ROMIn
       io.dataPort.stall := false.B
     }.elsewhen(dataRegion === MemoryRegions.Peripherals) {
       // Data access to Peripherals
