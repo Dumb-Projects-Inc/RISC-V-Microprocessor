@@ -424,19 +424,26 @@ class Instructions extends AnyFunSpec with ChiselSim {
     it("should handle Branch condition hazard (Forwarding to Branch)") {
       val input =
         """
+        addi x1, x0, 2
+        addi x2, x0, 1
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
         addi x1, x0, 10
         addi x2, x0, 10
-        beq x1, x2, 12
+        beq x1, x2, taken
         addi x3, x0, 1
-        jal x0, 8
+        jal x0, end
+        taken:
         addi x3, x0, 0x2
+        end:
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         """
       simulate(new TestTop(input)) { dut =>
-        dut.clock.step(12)
+        dut.clock.step(17)
         dut.io.dbg(3).expect(0x2.U)
       }
     }
