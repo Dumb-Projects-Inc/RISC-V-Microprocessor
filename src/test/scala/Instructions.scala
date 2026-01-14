@@ -426,21 +426,18 @@ class Instructions extends AnyFunSpec with ChiselSim {
         """
         addi x1, x0, 10
         addi x2, x0, 10
-        beq x1, x2, taken   // Should take branch
-        addi x3, x0, 0xBAD  // Fail if executed
-        jal x0, end
-        taken:
-        addi x3, x0, 0x600D // Success
-        end:
-        addi x0, x0, 0
+        beq x1, x2, 12
+        addi x3, x0, 1
+        jal x0, 8
+        addi x3, x0, 0x2
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
         """
       simulate(new TestTop(input)) { dut =>
-        dut.clock.step(20)
-        dut.io.dbg(3).expect(0x600d.U)
+        dut.clock.step(12)
+        dut.io.dbg(3).expect(0x2.U)
       }
     }
     it("should forward LUI result to ADDI") {
