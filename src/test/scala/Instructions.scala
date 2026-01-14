@@ -325,6 +325,44 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(42.U)
       }
     }
+    it("should forward ALU result to ALU input") {
+      val input =
+        """
+        addi x1, x0, 10
+        addi x2, x0, 20
+        add  x3, x1, x2
+        add  x4, x3, x1
+        add  x5, x4, x4
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+
+        dut.io.dbg(3).expect(30)
+        dut.io.dbg(4).expect(40)
+        dut.io.dbg(5).expect(80)
+      }
+    }
+    it("should forward Memory Load to ALU input (Load-Use no stall)") {
+      val input =
+        """
+        addi x1, x0, 100
+        addi x2, x0, 55
+        sw   x2, 0(x1)
+        lw   x3, 0(x1)
+        addi x4, x3, 5
+        addi x0, x0, 0
+        """
+
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(10)
+
+        dut.io.dbg(3).expect(55)
+        dut.io.dbg(4).expect(60)
+      }
+    }
     it("should flush on taken Branch") {
       val input =
         """
@@ -344,6 +382,5 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(1).expect(0.U) // x3 should be 100
       }
     }
-
   }
 }

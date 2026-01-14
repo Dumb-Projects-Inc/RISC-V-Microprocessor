@@ -185,8 +185,26 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     EX_WB_REG.wb.rs2Data.asSInt,
     EX_WB_REG.wb.imm
   )
-  alu.io.a := aluInput1
-  alu.io.b := aluInput2
+
+  val opResult = MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
+    Seq(
+      WriteSource.Memory -> io.dataPort.dataRead,
+      WriteSource.Pc -> (EX_WB_REG.wb.pc + 4.U)
+    )
+  )
+
+  val forwardInput1 =
+    (EX_WB_REG.wb.aluInput1Source === ALUInput1.Rs1) &&
+      (EX_WB_REG.wb.rs1 === RegNext(EX_WB_REG.wb.rd)) &&
+      RegNext(EX_WB_REG.wb.writeEnable)
+
+  val forwardInput2 =
+    (EX_WB_REG.wb.aluInput2Source === ALUInput2.Rs2) &&
+      (EX_WB_REG.wb.rs2 === RegNext(EX_WB_REG.wb.rd)) &&
+      RegNext(EX_WB_REG.wb.writeEnable)
+
+  alu.io.a := Mux(forwardInput1, RegNext(opResult).asSInt, aluInput1)
+  alu.io.b := Mux(forwardInput2, RegNext(opResult).asSInt, aluInput2)
   alu.io.op := EX_WB_REG.wb.aluOp
   aluResult := alu.io.result.asUInt
 
@@ -200,12 +218,6 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     flush := true.B
   }
 
-  val opResult = MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
-    Seq(
-      WriteSource.Memory -> io.dataPort.dataRead,
-      WriteSource.Pc -> (EX_WB_REG.wb.pc + 4.U)
-    )
-  )
   registers.io.writeData := opResult
   registers.io.wrEn := EX_WB_REG.wb.writeEnable
   registers.io.writeReg := EX_WB_REG.wb.rd
