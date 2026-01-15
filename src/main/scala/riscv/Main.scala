@@ -19,7 +19,7 @@ class RV32Debug extends Bundle {
   *
   * @param debug
   */
-class RV32ITop(debug: Boolean = false) extends Module {
+class RV32ITop(debug: Boolean = false) extends Module with RequireSyncReset {
   val io = IO(new Bundle {
     // val sw = Input(Bits(16.W)) // 16 switches that should be readable
     val btn = Input(Bits(4.W)) // 4 buttons (1 for reset)
