@@ -68,6 +68,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
 
   // Forward declarations
   val aluResult = Wire(UInt(32.W))
+  val opResult = Wire(UInt(32.W))
   val flush = WireDefault(false.B)
 
   // STAGE: Fetch instruction
@@ -144,16 +145,27 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dontTouch(EX_WB_REG)
   }
 
-  val memoryAddress = registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
-  io.dataPort.addr := memoryAddress.asUInt
-  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
-  io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
-  io.dataPort.dataWrite := registers.io.reg2Data
+  val forwardMem =
+    EX_WB_REG.wb.writeEnable === true.B &&
+      EX_WB_REG.wb.rd =/= 0.U
+
+  val forwardMemData = forwardMem && (ID_EX_REG.wb.rs2 === EX_WB_REG.wb.rd)
+  val forwardMemAddr = forwardMem && (ID_EX_REG.wb.rs1 === EX_WB_REG.wb.rd)
+
+  io.dataPort.addr := Mux(
+    forwardMemAddr,
+    opResult.asSInt + ID_EX_REG.ex.imm,
+    registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
+  ).asUInt
+
   io.dataPort.dataWrite := Mux(
-    ID_EX_REG.wb.rs2 === EX_WB_REG.wb.rd,
-    aluResult,
+    forwardMemData,
+    opResult,
     registers.io.reg2Data
   )
+
+  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
+  io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
 
   EX_WB_REG.wb := ID_EX_REG.wb
 
@@ -183,7 +195,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val aluInput1 = EX_WB_REG.wb.aluInput1
   val aluInput2 = EX_WB_REG.wb.aluInput2
 
-  val opResult = MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
+  opResult := MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
     Seq(
       WriteSource.Memory -> io.dataPort.dataRead,
       WriteSource.Pc -> (EX_WB_REG.wb.pc + 4.U)
