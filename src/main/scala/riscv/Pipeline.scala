@@ -86,28 +86,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   io.instrPort.addr := nextPc
   io.instrPort.enable := true.B
 
-  // STAGE: Decode control signals and fetch registers
-  val ID_EX_REG = RegInit({
-    val bundle = Wire(new Pipeline.ID_EX())
-    bundle := DontCare
-    bundle.ex.memOp := MemOp.Noop
-    bundle.wb.writeEnable := false.B
-    bundle.wb.branchType := BranchType.NO
-    bundle.wb.rs2 := 0.U
-    bundle.wb.rd := 0.U
-    bundle
-  })
-  if (debug) {
-    dontTouch(ID_EX_REG)
-  }
-
-  val decoder = Module(new Decoder)
-  decoder.io.instr := Mux(flush, Instruction.NOP, io.instrPort.instr)
-
-  if (debug) {
-    dontTouch(io.instrPort.instr)
-  }
-
+  // STAGE: fetch regs
   val registers = Module(new RegisterFile(debug))
 
   val dbg = if (debug) Some(IO(Output(new Debug()))) else None
@@ -116,22 +95,20 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     dbg.get.pc := pc
   }
 
-  registers.io.readReg1 := decoder.io.wb.rs1
-  registers.io.readReg2 := decoder.io.wb.rs2
+  registers.io.readReg1 := io.instrPort.instr(19, 15)
+  registers.io.readReg2 := io.instrPort.instr(24, 20)
 
-  ID_EX_REG.ex := decoder.io.ex
-  ID_EX_REG.wb := decoder.io.wb
-  ID_EX_REG.wb.pc := pc
-
+  val instrReg = RegInit(Instruction.NOP)
+  instrReg := io.instrPort.instr
   when(flush) {
-    ID_EX_REG.ex.memOp := MemOp.Noop
-    ID_EX_REG.wb.writeEnable := false.B
-    ID_EX_REG.wb.branchType := BranchType.NO
-    ID_EX_REG.wb.rs2 := 0.U
-    ID_EX_REG.wb.rd := 0.U
+    instrReg := Instruction.NOP
   }
 
   // STAGE: Retrieve memory and prepare ALU inputs
+  val decoder = Module(new Decoder)
+
+  decoder.io.instr := instrReg
+
   val EX_WB_REG = RegInit({
     val bundle = Wire(new Pipeline.EX_WB())
     bundle := DontCare
@@ -149,13 +126,13 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     EX_WB_REG.wb.writeEnable === true.B &&
       EX_WB_REG.wb.rd =/= 0.U
 
-  val forwardMemData = forwardMem && (ID_EX_REG.wb.rs2 === EX_WB_REG.wb.rd)
-  val forwardMemAddr = forwardMem && (ID_EX_REG.wb.rs1 === EX_WB_REG.wb.rd)
+  val forwardMemData = forwardMem && (decoder.io.wb.rs2 === EX_WB_REG.wb.rd)
+  val forwardMemAddr = forwardMem && (decoder.io.wb.rs1 === EX_WB_REG.wb.rd)
 
   io.dataPort.addr := Mux(
     forwardMemAddr,
-    opResult.asSInt + ID_EX_REG.ex.imm,
-    registers.io.reg1Data.asSInt + ID_EX_REG.ex.imm
+    opResult.asSInt + decoder.io.ex.imm,
+    registers.io.reg1Data.asSInt + decoder.io.ex.imm
   ).asUInt
 
   io.dataPort.dataWrite := Mux(
@@ -164,24 +141,24 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     registers.io.reg2Data
   )
 
-  io.dataPort.enable := (ID_EX_REG.ex.memOp =/= MemOp.Noop) && !flush
-  io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
+  io.dataPort.enable := (decoder.io.ex.memOp =/= MemOp.Noop) && !flush
+  io.dataPort.writeEn := decoder.io.ex.memOp === MemOp.Store
 
-  EX_WB_REG.wb := ID_EX_REG.wb
+  EX_WB_REG.wb := decoder.io.wb
 
   EX_WB_REG.wb.rs1Data := registers.io.reg1Data
   EX_WB_REG.wb.rs2Data := registers.io.reg2Data
 
   EX_WB_REG.wb.aluInput1 := Mux(
-    ID_EX_REG.wb.aluInput1Source === ALUInput1.Rs1,
+    decoder.io.wb.aluInput1Source === ALUInput1.Rs1,
     registers.io.reg1Data,
-    ID_EX_REG.wb.pc
+    RegNext(pc)
   ).asSInt
 
   EX_WB_REG.wb.aluInput2 := Mux(
-    ID_EX_REG.wb.aluInput2Source === ALUInput2.Rs2,
+    decoder.io.wb.aluInput2Source === ALUInput2.Rs2,
     registers.io.reg2Data.asSInt,
-    ID_EX_REG.ex.imm
+    decoder.io.ex.imm
   )
 
   when(flush) {
@@ -198,7 +175,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   opResult := MuxLookup(EX_WB_REG.wb.writeSource, aluResult)(
     Seq(
       WriteSource.Memory -> io.dataPort.dataRead,
-      WriteSource.Pc -> (EX_WB_REG.wb.pc + 4.U)
+      WriteSource.Pc -> (RegNext(RegNext(pc)) + 4.U)
     )
   )
 
