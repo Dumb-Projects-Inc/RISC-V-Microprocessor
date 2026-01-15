@@ -39,6 +39,7 @@ class BTB(entries: Int) extends Module {
   )(1) === getTag(io.currentPc)))
 
   io.hit := hit1 || hit2
+  io.targetPc := 0.U
 
   when(hit1 || hit2) {
     when(hit1) {
