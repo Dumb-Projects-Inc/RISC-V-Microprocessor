@@ -263,8 +263,78 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
-  // SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND missing
-
+  when(io.instr === Instruction.SUB) {
+    io.wb.aluOp := ALUOp.Sub
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.SLL) {
+    io.wb.aluOp := ALUOp.Sll
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.SLT) {
+    io.wb.aluOp := ALUOp.Slt
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.SLTU) {
+    io.wb.aluOp := ALUOp.Sltu
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.XOR) {
+    io.wb.aluOp := ALUOp.Xor
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.SRL) {
+    io.wb.aluOp := ALUOp.Srl
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.SRA) {
+    io.wb.aluOp := ALUOp.Sra
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.OR) {
+    io.wb.aluOp := ALUOp.Or
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  when(io.instr === Instruction.AND) {
+    io.wb.aluOp := ALUOp.And
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
 }
 
 class ImmGen extends Module {
