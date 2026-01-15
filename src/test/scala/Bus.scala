@@ -6,6 +6,7 @@ import chisel3.simulator.scalatest.ChiselSim
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import lib.Bus
+import lib.BusConnecter
 
 class TestSlave(val addrBase: Long, val latency: Int = 0) extends Module {
   val io = IO(new Bundle { val bus = Bus.RespondPort.apply() })
@@ -76,9 +77,10 @@ class TestBusTop extends Module {
   // valid signals from the slaves.
   //
   // I was able to make the 2 tests pass by making a multiplexer that selects based on valid signals.
-  // TODO: Imeplement a proper bus arbiter to hande multiple slaves.
-  translator.io.bus <> slave1.io.bus
-  translator.io.bus <> slave2.io.bus
+  BusConnecter.connect(
+    translator.io.bus,
+    Seq(slave1.io.bus, slave2.io.bus)
+  )
 
 }
 

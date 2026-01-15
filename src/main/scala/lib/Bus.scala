@@ -59,3 +59,24 @@ object Bus {
     def apply(): RequestPort = new RequestPort
   }
 }
+
+
+object BusConnecter {
+
+  def connect(master: Bus.RequestPort, slaves: Seq[Bus.RespondPort]): Unit = {
+    
+    for (s <- slaves) {
+      s.addr := master.addr
+      s.read := master.read
+      s.write := master.write
+      s.wrData := master.wrData
+    }
+
+    val valids = VecInit(slaves.map(_.rdValid))
+
+    master.rdValid := valids.asUInt.orR
+    master.rdData := Mux1H(slaves.map(s => s.rdValid -> s.rdData))
+    master.stall := slaves.map(_.stall).reduce(_ || _) // TODO: Smarter stall logic
+
+  }
+}
