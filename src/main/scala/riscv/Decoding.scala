@@ -60,7 +60,7 @@ class Decoder extends Module {
   val immGen = Module(new ImmGen)
   immGen.io.instr := io.instr
   immGen.io.format := format
-  io.wb.imm := immGen.io.out
+  io.ex.imm := immGen.io.out
 
   // U-Type instructions
   when(io.instr === Instruction.LUI) {
