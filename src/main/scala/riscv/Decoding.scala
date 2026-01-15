@@ -62,22 +62,7 @@ class Decoder extends Module {
   immGen.io.format := format
   io.wb.imm := immGen.io.out
 
-  when(io.instr === Instruction.ADDI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSource.ALU
-    format := Format.I
-  }
-  when(io.instr === Instruction.ADD) {
-    io.wb.aluOp := ALUOp.Add
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
-    io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSource.ALU
-    format := Format.R
-  }
+  // U-Type instructions
   when(io.instr === Instruction.LUI) {
     io.wb.aluOp := ALUOp.Noop
     io.wb.aluInput2Source := ALUInput2.Imm
@@ -93,20 +78,8 @@ class Decoder extends Module {
   //   io.wb.writeSource := WriteSource.ALU
   //   format := Format.U
   // }
-  when(io.instr === Instruction.LW) {
-    io.wb.writeEnable := true.B
-    io.wb.writeSource := WriteSource.Memory
-    io.ex.memOp := MemOp.Load
-    io.ex.memSize := MemSize.Word
-    format := Format.I
-  }
-  when(io.instr === Instruction.SW) {
-    io.ex.memOp := MemOp.Store
-    io.ex.memSize := MemSize.Word
-    format := Format.S
-  }
 
-  // Branches
+  // J-Type
   when(io.instr === Instruction.JAL) {
     io.wb.aluOp := ALUOp.Add
     io.wb.aluInput1Source := ALUInput1.Pc
@@ -116,6 +89,8 @@ class Decoder extends Module {
     io.wb.writeEnable := true.B
     format := Format.J
   }
+
+  // I-Type
   when(io.instr === Instruction.JALR) {
     io.wb.aluOp := ALUOp.Add
     io.wb.aluInput2Source := ALUInput2.Imm
@@ -124,6 +99,28 @@ class Decoder extends Module {
     io.wb.writeEnable := true.B
     format := Format.I
   }
+  // LB LH missing
+  when(io.instr === Instruction.LW) {
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.Memory
+    io.ex.memOp := MemOp.Load
+    io.ex.memSize := MemSize.Word
+    format := Format.I
+  }
+  // LBU LHU missing
+
+  when(io.instr === Instruction.ADDI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Add
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+
+  // SLTI, SLTIU, XORI, ORI, ANDI
+
+  // B-Type
   when(io.instr === Instruction.BEQ) {
     io.wb.aluInput1Source := ALUInput1.Pc
     io.wb.aluInput2Source := ALUInput2.Imm
@@ -138,6 +135,26 @@ class Decoder extends Module {
     io.wb.branchType := BranchType.BNE
     format := Format.B
   }
+  // BLT, BGE, BLTU, BGEU
+
+  // S-Type
+  // SB, SH missing
+  when(io.instr === Instruction.SW) {
+    io.ex.memOp := MemOp.Store
+    io.ex.memSize := MemSize.Word
+    format := Format.S
+  }
+
+  // R-Type
+  when(io.instr === Instruction.ADD) {
+    io.wb.aluOp := ALUOp.Add
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.R
+  }
+  // SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND missing
 
 }
 
