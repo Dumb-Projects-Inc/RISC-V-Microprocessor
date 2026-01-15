@@ -99,7 +99,6 @@ class Decoder extends Module {
     io.wb.writeEnable := true.B
     format := Format.I
   }
-  // LB LH missing
   when(io.instr === Instruction.LW) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
@@ -107,7 +106,35 @@ class Decoder extends Module {
     io.ex.memSize := MemSize.Word
     format := Format.I
   }
-  // LBU LHU missing
+  when(io.instr === Instruction.LB) {
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.Memory
+    io.ex.memOp := MemOp.Load
+    io.ex.memSize := MemSize.Byte
+    format := Format.I
+  }
+  when(io.instr === Instruction.LH) {
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.Memory
+    io.ex.memOp := MemOp.Load
+    io.ex.memSize := MemSize.HalfWord
+    format := Format.I
+  }
+  when(io.instr === Instruction.LBU) {
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.Memory
+    io.ex.memOp := MemOp.Load
+    io.ex.memSize := MemSize.Byte
+    format := Format.I
+  }
+  when(io.instr === Instruction.LHU) {
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.Memory
+    io.ex.memOp := MemOp.Load
+    io.ex.memSize := MemSize.HalfWord
+    format := Format.I
+  }
+  
 
   when(io.instr === Instruction.ADDI) {
     io.wb.aluInput1Source := ALUInput1.Rs1
