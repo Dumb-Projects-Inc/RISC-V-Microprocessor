@@ -424,6 +424,25 @@ class Instructions extends AnyFunSpec with ChiselSim {
       dut.io.dbg(1).expect(0.U) // x3 should be 100
     }
   }
+  it("should flush memory accesses when branching") {
+    val input =
+      """
+        addi x1, x0, 100
+        sw x0, 0(x1)
+        addi x2, x0, 55
+        bne x0, x1, end
+        sw   x2, 0(x1)
+        end:
+          lw   x3, 0(x1)
+          addi x0, x0, 0
+          addi x0, x0, 0
+          addi x0, x0, 0
+      """
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(30)
+      dut.io.dbg(3).expect(0.U) // x3 should be 0 since store was flushed
+    }
+  }
   it("should NOT forward values written to x0") {
     val input =
       """
