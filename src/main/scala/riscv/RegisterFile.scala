@@ -26,13 +26,13 @@ class RegisterFile(debug: Boolean = false)
   val r1Data = regFile.read(io.readReg1, true.B)
   val r2Data = regFile.read(io.readReg2, true.B)
 
-  val isZero1 = RegNext(io.readReg1 === 0.U)
-  val isZero2 = RegNext(io.readReg2 === 0.U)
+  val isZero1 = RegNext(io.readReg1, 1.U) === 0.U
+  val isZero2 = RegNext(io.readReg2, 1.U) === 0.U
 
   io.reg1Data := Mux(isZero1, 0.U, r1Data)
   io.reg2Data := Mux(isZero2, 0.U, r2Data)
 
-  when(io.wrEn) {
+  when(io.wrEn && (io.writeReg =/= 0.U)) {
     regFile.write(io.writeReg, io.writeData)
   }
 
