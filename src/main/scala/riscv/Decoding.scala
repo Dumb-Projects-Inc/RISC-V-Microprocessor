@@ -93,6 +93,7 @@ class Decoder extends Module {
   // I-Type
   when(io.instr === Instruction.JALR) {
     io.wb.aluOp := ALUOp.Add
+    io.wb.aluInput1Source := ALUInput1.Rs1
     io.wb.aluInput2Source := ALUInput2.Imm
     io.wb.branchType := BranchType.J
     io.wb.writeSource := WriteSource.Pc
@@ -134,8 +135,6 @@ class Decoder extends Module {
     io.ex.memSize := MemSize.HalfWord
     format := Format.I
   }
-  
-
   when(io.instr === Instruction.ADDI) {
     io.wb.aluInput1Source := ALUInput1.Rs1
     io.wb.aluInput2Source := ALUInput2.Imm
@@ -200,7 +199,6 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
-
 
   // B-Type
   when(io.instr === Instruction.BEQ) {
