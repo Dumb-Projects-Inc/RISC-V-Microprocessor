@@ -164,7 +164,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
     registers.io.reg2Data
   )
 
-  io.dataPort.enable := ID_EX_REG.ex.memOp =/= MemOp.Noop
+  io.dataPort.enable := (ID_EX_REG.ex.memOp =/= MemOp.Noop) && !flush
   io.dataPort.writeEn := ID_EX_REG.ex.memOp === MemOp.Store
 
   EX_WB_REG.wb := ID_EX_REG.wb
