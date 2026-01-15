@@ -1,0 +1,40 @@
+name: Scala CI
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["**.scala", "**.sbt", "**.nix", "flake.lock", "project/**"]
+  pull_request:
+    branches: [main]
+    paths: ["**.scala", "**.sbt", "**.nix", "flake.lock", "project/**"]
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: DeterminateSystems/determinate-nix-action@v3
+        name: Install Nix
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
+        name: Cache Nix derivations
+
+      - name: Cache SBT dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt
+            ~/.coursier
+          key: sbt-${{ runner.os }}-${{ hashFiles('**/build.sbt', 'project/plugins.sbt') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
+      - name: Run Lint and Tests
+        run: nix develop . --command sbt "scalafmtCheckAll; test"
