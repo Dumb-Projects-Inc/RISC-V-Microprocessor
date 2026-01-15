@@ -7,7 +7,7 @@ import lib.Addresses
 
 class MemoryMappedLeds(
     cnt: Int,
-    baseAddr: BigInt = Addresses.LED_ADDR,
+    baseAddr: BigInt = Addresses.LED_ADDR
 ) extends Module {
   require(cnt <= 32, "Only up to 32 LEDs can be controlled through the bus")
 
