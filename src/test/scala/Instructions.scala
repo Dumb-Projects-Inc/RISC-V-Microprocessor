@@ -249,6 +249,26 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
+    it("should execute AUIPC correctly") {
+      val input =
+        """
+        addi x0, x0, 0
+        addi x0, x0, 0
+        auipc x1, 0x12345
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+      simulate(new TestTop(input)) { dut =>
+        dut.clock.step(15)
+        // addi (0), addi (4), auipc (8)
+        // PC for auipc is 8.
+        // Result: 8 + 0x12345000 = 0x12345008
+        dut.io.dbg(1).expect("h12345008".U)
+      }
+    }
+
     it("should combine LUI and ADDI") {
       val input =
         """

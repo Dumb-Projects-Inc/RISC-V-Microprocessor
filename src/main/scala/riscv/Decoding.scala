@@ -70,14 +70,14 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.ALU
     format := Format.U
   }
-  // when(io.instr === Instruction.AUIPC) {
-  //   io.wb.aluOp := ALUOp.Add
-  //   io.ex.aluInput1 := ALUInput1.Pc
-  //   io.ex.aluInput2 := ALUInput2.Imm
-  //   io.wb.writeEnable := false.B
-  //   io.wb.writeSource := WriteSource.ALU
-  //   format := Format.U
-  // }
+  when(io.instr === Instruction.AUIPC) {
+    io.wb.aluOp := ALUOp.Add
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.U
+  }
 
   // J-Type
   when(io.instr === Instruction.JAL) {
