@@ -18,6 +18,22 @@ static inline int read_cycle(void)
     return value;
 }
 
+static inline void uart_write_char(char c)
+{
+    volatile int *uart_stat = (int *)(UART_ADDR + 4);
+    volatile char *uart = (char *)UART_ADDR;
+
+    *uart = c;
+}
+
+static inline void uart_write_string(const char *str)
+{
+    while (*str)
+    {
+        uart_write_char(*str++);
+    }
+}
+
 int main()
 {
     volatile int start_time = 0;
