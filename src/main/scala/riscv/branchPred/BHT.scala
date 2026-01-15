@@ -36,7 +36,7 @@ class BHT(entries: Int) extends Module {
         table(idx) := 0.U
       }
     }
-    
+
   }
 
 }

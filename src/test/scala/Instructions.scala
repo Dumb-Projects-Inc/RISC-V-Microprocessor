@@ -7,6 +7,11 @@ import chisel3.util.experimental.loadMemoryFromFile
 import com.carlosedp.riscvassembler.RISCVAssembler
 
 import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.Tag
+
+object Basic extends Tag("Basic")
+object Hazard extends Tag("Hazard")
+object Branch extends Tag("Branch")
 
 class TestTop(instr: String) extends Module {
   val io = IO(new Bundle {
@@ -52,7 +57,7 @@ class TestTop(instr: String) extends Module {
 
 class Instructions extends AnyFunSpec with ChiselSim {
   describe("Basic instructions") {
-    it("should correctly load and store words") {
+    it("should correctly load and store words", Basic) {
       val input =
         """
         addi x1, x0, 123
@@ -76,7 +81,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(2).expect(123)
       }
     }
-    it("should implement addi") {
+    it("should implement addi", Basic) {
       val input =
         """
        addi x1, x0, 10
@@ -90,7 +95,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(1).expect(10.U)
       }
     }
-    it("should implement add") {
+    it("should implement add", Basic) {
       val input =
         """
        addi x1, x0, 10
@@ -106,7 +111,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(25)
       }
     }
-    it("should implement jal") {
+    it("should implement jal", Branch) {
       val input =
         """
        addi x1, x0, 1
@@ -128,7 +133,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(2).expect(8.U)
       }
     }
-    it("should handle conditional branches (BEQ)") {
+    it("should handle conditional branches (BEQ)", Branch) {
       val input =
         """
         beq x0, x0, 24
@@ -151,7 +156,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
-    it("should handle loops (BNE)") {
+    it("should handle loops (BNE)", Branch) {
       val input =
         """
         addi x1, x0, 0
@@ -176,7 +181,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(100.U)
       }
     }
-    it("should handle negative memory offsets (LW/SW)") {
+    it("should handle negative memory offsets (LW/SW)", Basic) {
       val input =
         """
         addi x1, x0, 100
@@ -200,7 +205,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(5).expect(0xbb.U)
       }
     }
-    it("should handle not-taken branches correctly") {
+    it("should handle not-taken branches correctly", Branch) {
       val input =
         """
         addi x1, x0, 10
@@ -230,7 +235,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(5.U)
       }
     }
-    it("should execute LUI correctly") {
+    it("should execute LUI correctly", Basic) {
       val input =
         """
         lui x1, 0x12345
@@ -249,7 +254,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
-    it("should execute AUIPC correctly") {
+    it("should execute AUIPC correctly", Basic) {
       val input =
         """
         addi x0, x0, 0
@@ -269,7 +274,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
-    it("should combine LUI and ADDI") {
+    it("should combine LUI and ADDI", Basic) {
       val input =
         """
         lui x1, 0x12345
@@ -288,7 +293,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
-    it("should execute JALR (Computed Jump)") {
+    it("should execute JALR (Computed Jump)", Branch) {
       val input =
         """
         addi x1, x0, 16
@@ -310,7 +315,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
 
-    it("should execute JALR with Link (Function Call return setup)") {
+    it("should execute JALR with Link (Function Call return setup)", Branch) {
       val input =
         """
         addi x1, x0, 16
@@ -338,7 +343,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
   }
 
   describe("Pipeline Hazards & Forwarding") {
-    it("should forward ALU result to memory store") {
+    it("should forward ALU result to memory store", Hazard) {
       val input =
         """
         addi x1, x0, 4  
@@ -359,7 +364,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(3).expect(42.U)
       }
     }
-    it("should forward ALU result to ALU input") {
+    it("should forward ALU result to ALU input", Hazard) {
       val input =
         """
         addi x1, x0, 10
@@ -382,7 +387,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(5).expect(80)
       }
     }
-    it("should forward Memory Load to ALU input (Load-Use no stall)") {
+    it("should forward Memory Load to ALU input (Load-Use no stall)", Hazard) {
       val input =
         """
         addi x1, x0, 100
@@ -404,7 +409,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(4).expect(60)
       }
     }
-    it("should forward registers to memory address") {
+    it("should forward registers to memory address", Hazard) {
       val input =
         """
         addi x2, x0, 100
@@ -422,7 +427,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       }
     }
   }
-  it("should flush on taken Branch") {
+  it("should flush on taken Branch", Branch) {
     val input =
       """
         jal x0, end
@@ -444,7 +449,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       dut.io.dbg(1).expect(0.U) // x3 should be 100
     }
   }
-  it("should flush memory accesses when branching") {
+  it("should flush memory accesses when branching", Branch) {
     val input =
       """
         addi x1, x0, 100
@@ -463,7 +468,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       dut.io.dbg(3).expect(0.U) // x3 should be 0 since store was flushed
     }
   }
-  it("should NOT forward values written to x0") {
+  it("should NOT forward values written to x0", Hazard) {
     val input =
       """
         addi x1, x0, 10
@@ -485,7 +490,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       dut.io.dbg(2).expect(10.U)
     }
   }
-  it("should handle Branch condition hazard (Forwarding to Branch)") {
+  it("should handle Branch condition hazard (Forwarding to Branch)", Hazard) {
     val input =
       """
         addi x1, x0, 2
@@ -511,7 +516,7 @@ class Instructions extends AnyFunSpec with ChiselSim {
       dut.io.dbg(3).expect(0x2.U)
     }
   }
-  it("should forward LUI result to ADDI") {
+  it("should forward LUI result to ADDI", Hazard) {
     val input =
       """
         lui x1, 0x00001     // x1 = 4096
