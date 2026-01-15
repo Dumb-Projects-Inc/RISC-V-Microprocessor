@@ -48,7 +48,6 @@ class TestTop(instr: String) extends Module {
   io.dataaddr := pipeline.io.dataPort.addr
   io.dataEn := pipeline.io.dataPort.enable
   io.dataOut := pipeline.io.dataPort.dataWrite
-  io.instrport <> pipeline.io.instrPort
 }
 
 class Instructions extends AnyFunSpec with ChiselSim {
@@ -394,18 +393,18 @@ class Instructions extends AnyFunSpec with ChiselSim {
         lw   x3, 0(x2)
         """
       simulate(new TestTop(input)) { dut =>
-          dut.clock.step(4)
-          dut.io.dataaddr.expect(200.U)
-          dut.io.dataEn.expect(true.B)
-          dut.clock.step()
-          dut.io.dataaddr.expect(100.U)
-          dut.io.dataEn.expect(true.B)
-        }
+        dut.clock.step(4)
+        dut.io.dataaddr.expect(200.U)
+        dut.io.dataEn.expect(true.B)
+        dut.clock.step()
+        dut.io.dataaddr.expect(100.U)
+        dut.io.dataEn.expect(true.B)
       }
     }
-    it("should flush on taken Branch") {
-      val input =
-        """
+  }
+  it("should flush on taken Branch") {
+    val input =
+      """
         jal x0, end
         addi x1, x0, 101
         addi x1, x0, 102
@@ -420,14 +419,14 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x0, x0, 0
         addi x0, x0, 0
         """
-      simulate(new TestTop(input)) { dut =>
-        dut.clock.step(10)
-        dut.io.dbg(1).expect(0.U) // x3 should be 100
-      }
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(10)
+      dut.io.dbg(1).expect(0.U) // x3 should be 100
     }
-    it("should NOT forward values written to x0") {
-      val input =
-        """
+  }
+  it("should NOT forward values written to x0") {
+    val input =
+      """
         addi x1, x0, 10
         addi x0, x1, 20
         add  x2, x0, x1
@@ -440,16 +439,16 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x0, x0, 0
         """
 
-      simulate(new TestTop(input)) { dut =>
-        dut.clock.step(10)
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(10)
 
-        // x2 should be 10 (0 + 10), NOT 40 (30 + 10)
-        dut.io.dbg(2).expect(10.U)
-      }
+      // x2 should be 10 (0 + 10), NOT 40 (30 + 10)
+      dut.io.dbg(2).expect(10.U)
     }
-    it("should handle Branch condition hazard (Forwarding to Branch)") {
-      val input =
-        """
+  }
+  it("should handle Branch condition hazard (Forwarding to Branch)") {
+    val input =
+      """
         addi x1, x0, 2
         addi x2, x0, 1
         addi x0, x0, 0
@@ -468,14 +467,14 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x0, x0, 0
         addi x0, x0, 0
         """
-      simulate(new TestTop(input)) { dut =>
-        dut.clock.step(17)
-        dut.io.dbg(3).expect(0x2.U)
-      }
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(17)
+      dut.io.dbg(3).expect(0x2.U)
     }
-    it("should forward LUI result to ADDI") {
-      val input =
-        """
+  }
+  it("should forward LUI result to ADDI") {
+    val input =
+      """
         lui x1, 0x00001     // x1 = 4096
         addi x2, x1, 4      // x2 = 4100 (Dependency on x1)
         addi x0, x0, 0
@@ -484,10 +483,9 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x0, x0, 0
         addi x0, x0, 0
         """
-      simulate(new TestTop(input)) { dut =>
-        dut.clock.step(10)
-        dut.io.dbg(2).expect(4100.U)
-      }
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(10)
+      dut.io.dbg(2).expect(4100.U)
     }
   }
 }
