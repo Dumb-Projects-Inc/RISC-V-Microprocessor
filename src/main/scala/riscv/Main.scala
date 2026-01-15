@@ -10,6 +10,8 @@ import riscv.memory.Bootloader
 class RV32Debug extends Bundle {
   val instrAddr = UInt(32.W)
   val instr = UInt(32.W)
+  val dataAddr = UInt(32.W)
+  val dataEn = Bool()
 }
 
 /** Top-level module for RV32I processor, this maps the pipeline to memory, as
@@ -53,7 +55,9 @@ class RV32ITop(debug: Boolean = false) extends Module {
   val dbg = if (debug) Some(IO(Output(new RV32Debug()))) else None
   if (debug) {
     dbg.get.instrAddr := pipeline.dbg.get.pc
+    dbg.get.dataAddr := pipeline.io.dataPort.addr
     dbg.get.instr := pipeline.io.instrPort.instr
+    dbg.get.dataEn := pipeline.io.dataPort.enable
   }
 
 }

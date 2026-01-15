@@ -37,7 +37,10 @@ object Bootloader {
   delay2:
     addi x3, x3, -1
     bne x3, x0, delay2
-  jal x0, on  
+  jal x0, on
+  addi x0, x0, 0
+  addi x0, x0, 0
+  addi x0, x0, 0 
 """
   def assemble(program: String): String = {
     RISCVAssembler
