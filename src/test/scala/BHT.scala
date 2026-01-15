@@ -76,15 +76,15 @@ class BHTSpec extends AnyFunSpec with ChiselSim {
 
         // first 4 now not taken (0.U), next 4 weak taken (2.U), rest still 1.U
         for (i <- 0 until 16) {
-            dut.io.currentPc.poke((i * 4).U)
-            dut.clock.step()
-            if (i < 4) {
-                dut.io.pred.expect(false.B)
-            } else if (i < 8) {
-                dut.io.pred.expect(true.B)
-            } else {
-                dut.io.pred.expect(false.B)
-            }
+          dut.io.currentPc.poke((i * 4).U)
+          dut.clock.step()
+          if (i < 4) {
+            dut.io.pred.expect(false.B)
+          } else if (i < 8) {
+            dut.io.pred.expect(true.B)
+          } else {
+            dut.io.pred.expect(false.B)
+          }
         }
 
         // mark all branches as taken to test saturating at 3.U
@@ -98,18 +98,17 @@ class BHTSpec extends AnyFunSpec with ChiselSim {
         // stop updating while checking
         dut.io.update.poke(false.B)
 
-
         // first 4 now weak not taken (1.U), next 4 taken (3.U), rest weak taken (2.U)
         for (i <- 0 until 16) {
-            dut.io.currentPc.poke((i * 4).U)
-            dut.clock.step()
-            if (i < 4) {
-                dut.io.pred.expect(false.B)
-            } else if (i < 8) {
-                dut.io.pred.expect(true.B)
-            } else {
-                dut.io.pred.expect(true.B)
-            }
+          dut.io.currentPc.poke((i * 4).U)
+          dut.clock.step()
+          if (i < 4) {
+            dut.io.pred.expect(false.B)
+          } else if (i < 8) {
+            dut.io.pred.expect(true.B)
+          } else {
+            dut.io.pred.expect(true.B)
+          }
         }
 
       }
