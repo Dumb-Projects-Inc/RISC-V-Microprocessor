@@ -14,11 +14,16 @@ class BHT(entries: Int) extends Module {
   })
 
   val indexBits = log2Ceil(entries)
-  val table = RegInit(VecInit(Seq.fill(entries)(1.U(2.W))))
+  
+  // 0: not taken
+  // 1: weak not taken - Default
+  // 2: weak taken
+  // 3: taken
+  val table = RegInit(VecInit(Seq.fill(entries)(1.U(2.W)))) 
 
   def getIndex(pc: UInt): UInt = pc(1 + indexBits, 2)
 
-  io.pred := table(getIndex(io.currentPc))
+  io.pred := table(getIndex(io.currentPc)) > 1.U
 
   // Update
   when(io.update) {
