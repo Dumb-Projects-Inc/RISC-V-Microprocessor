@@ -144,8 +144,63 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
+  when(io.instr === Instruction.SLLI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Sll
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.SRLI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Srl
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.SLTI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Slt
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.SLTIU) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Sltu
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.XORI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Xor
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.ORI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Or
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.ANDI) {
+    io.wb.aluInput1Source := ALUInput1.Rs1
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.And
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
 
-  // SLTI, SLTIU, XORI, ORI, ANDI
 
   // B-Type
   when(io.instr === Instruction.BEQ) {
