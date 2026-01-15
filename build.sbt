@@ -26,8 +26,8 @@ lazy val root = (project in file("."))
     ),
     addCompilerPlugin(
       "org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full
-    ),
-    Test / testOptions +=
-      Tests.Argument(TestFrameworks.ScalaTest, "-DemitVcd=1")
+    )
   )
   .dependsOn(isaSim % "test->compile")
+
+addCommandAlias("testVcd", "testOnly -- -DemitVcd=1")
