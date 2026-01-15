@@ -217,7 +217,34 @@ class Decoder extends Module {
     io.wb.branchType := BranchType.BNE
     format := Format.B
   }
-  // BLT, BGE, BLTU, BGEU
+  when(io.instr === Instruction.BLT) {
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Add
+    io.wb.branchType := BranchType.BLT
+    format := Format.B
+  }
+  when(io.instr === Instruction.BGE) {
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Add
+    io.wb.branchType := BranchType.BGE
+    format := Format.B
+  }
+  when(io.instr === Instruction.BLTU) {
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Add
+    io.wb.branchType := BranchType.BLTU
+    format := Format.B
+  }
+  when(io.instr === Instruction.BGEU) {
+    io.wb.aluInput1Source := ALUInput1.Pc
+    io.wb.aluInput2Source := ALUInput2.Imm
+    io.wb.aluOp := ALUOp.Add
+    io.wb.branchType := BranchType.BGEU
+    format := Format.B
+  }
 
   // S-Type
   // SB, SH missing
