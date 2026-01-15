@@ -26,6 +26,16 @@
         crossCompilation = pkgs.pkgsCross.riscv32.buildPackages;
       in {
         default = pkgs.mkShell {
+          packages = with pkgs; [
+            sbt
+            verilator
+            circt
+            python3
+            jdk21_headless
+          ];
+          CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
+        };
+        user = pkgs.mkShell {
           packages = with pkgs;
             [
               sbt
