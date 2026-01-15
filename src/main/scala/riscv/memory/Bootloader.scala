@@ -26,56 +26,18 @@ object Bootloader {
 """
   private val TEST = """
   addi x1, x0, 252
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
   on:
     lw x2, 0(x1)
   lui x3, 0x006D0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
   delay:
     addi x3, x3, -1
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
     bne x3, x0, delay
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
   lw x2, 0(x0) 
   lui x3, 0x006D0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
   delay2:
     addi x3, x3, -1
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
     bne x3, x0, delay2
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
-    addi x0, x0, 0
   jal x0, on  
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
-  addi x0, x0, 0
 """
   def assemble(program: String): String = {
     RISCVAssembler

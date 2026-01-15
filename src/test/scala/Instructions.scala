@@ -12,6 +12,9 @@ class TestTop(instr: String) extends Module {
   val io = IO(new Bundle {
     val dbg = Output(Vec(32, UInt(32.W)))
     val pc = Output(UInt(32.W))
+    val dataaddr = Output(UInt(32.W))
+    val dataEn = Output(Bool())
+    val dataOut = Output(UInt(32.W))
   })
 
   val pipeline = Module(new Pipeline(debug = true, debugPrint = false))
@@ -41,6 +44,11 @@ class TestTop(instr: String) extends Module {
     dmem.write(dmemAddr, pipeline.io.dataPort.dataWrite)
   }
   pipeline.io.dataPort.stall := false.B
+
+  io.dataaddr := pipeline.io.dataPort.addr
+  io.dataEn := pipeline.io.dataPort.enable
+  io.dataOut := pipeline.io.dataPort.dataWrite
+  io.instrport <> pipeline.io.instrPort
 }
 
 class Instructions extends AnyFunSpec with ChiselSim {
@@ -375,6 +383,24 @@ class Instructions extends AnyFunSpec with ChiselSim {
 
         dut.io.dbg(3).expect(55)
         dut.io.dbg(4).expect(60)
+      }
+    }
+    it("should forward registers to memory address") {
+      val input =
+        """
+        addi x2, x0, 100
+        addi x1, x0, 200
+        sw   x2, 0(x1)
+        lw   x3, 0(x2)
+        """
+      simulate(new TestTop(input)) { dut =>
+          dut.clock.step(4)
+          dut.io.dataaddr.expect(200.U)
+          dut.io.dataEn.expect(true.B)
+          dut.clock.step()
+          dut.io.dataaddr.expect(100.U)
+          dut.io.dataEn.expect(true.B)
+        }
       }
     }
     it("should flush on taken Branch") {
