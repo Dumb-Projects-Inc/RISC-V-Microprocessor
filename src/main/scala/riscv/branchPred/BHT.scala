@@ -3,6 +3,10 @@ package riscv.branchPred
 import chisel3._
 import chisel3.util._
 
+object Prediction extends ChiselEnum {
+  val notTaken, weakNotTaken, weakTaken, taken = Value
+}
+
 class BHT(entries: Int) extends Module {
   val io = IO(new Bundle {
     val currentPc = Input(UInt(32.W))
@@ -19,26 +23,27 @@ class BHT(entries: Int) extends Module {
   // 1: weak not taken - Default
   // 2: weak taken
   // 3: taken
-  val table = RegInit(VecInit(Seq.fill(entries)(1.U(2.W))))
+
+  val table = RegInit(VecInit(Seq.fill(entries)(Prediction.weakNotTaken)))
 
   def getIndex(pc: UInt): UInt = pc(1 + indexBits, 2)
 
-  io.pred := table(getIndex(io.currentPc)) > 1.U
+  io.pred := table(getIndex(io.currentPc)).asUInt > 1.U
 
   // Update
   when(io.update) {
     val idx = getIndex(io.updatePc)
     when(io.taken) {
-      when(table(idx) =/= 3.U) {
-        table(idx) := table(idx) + 1.U
+      when(table(idx) =/= Prediction.taken) {
+        table(idx) := Prediction(table(idx).asUInt + 1.U)
       }.otherwise {
-        table(idx) := 3.U
+        table(idx) := Prediction.taken
       }
     }.elsewhen(!io.taken) {
-      when(table(idx) =/= 0.U) {
-        table(idx) := table(idx) - 1.U
+      when(table(idx) =/= Prediction.notTaken) {
+        table(idx) := Prediction(table(idx).asUInt - 1.U)
       }.otherwise {
-        table(idx) := 0.U
+        table(idx) := Prediction.notTaken
       }
     }
 
