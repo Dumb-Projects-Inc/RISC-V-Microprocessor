@@ -416,9 +416,14 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x1, x0, 200
         sw   x2, 0(x1)
         lw   x3, 0(x2)
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
         """
       simulate(new TestTop(input)) { dut =>
-        dut.clock.step(4)
+        dut.clock.step(5)
         dut.io.dataaddr.expect(200.U)
         dut.io.dataEn.expect(true.B)
         dut.clock.step()
@@ -519,8 +524,8 @@ class Instructions extends AnyFunSpec with ChiselSim {
   it("should forward LUI result to ADDI", Hazard) {
     val input =
       """
-        lui x1, 0x00001     // x1 = 4096
-        addi x2, x1, 4      // x2 = 4100 (Dependency on x1)
+        lui x1, 0x00001
+        addi x2, x1, 4
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
