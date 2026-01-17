@@ -40,18 +40,20 @@ class Decoder extends Module {
   val io = IO(new Bundle {
     val instr = Input(UInt(32.W))
     val ex = Output(new ControlSignals.EX())
+    val mem = Output(new ControlSignals.MEM())
     val wb = Output(new ControlSignals.WB())
   })
 
   io.ex := DontCare
+  io.mem := DontCare
   io.wb := DontCare
 
-  io.ex.memOp := MemOp.Noop
+  io.mem.memOp := MemOp.Noop
 
-  io.wb.rs1 := io.instr(19, 15)
-  io.wb.rs2 := io.instr(24, 20)
+  io.ex.rs1 := io.instr(19, 15)
+  io.ex.rs2 := io.instr(24, 20)
   io.wb.writeEnable := false.B
-  io.wb.branchType := BranchType.NO
+  io.ex.branchType := BranchType.NO
   io.wb.rd := io.instr(11, 7)
 
   val format = Wire(Format())
@@ -64,16 +66,16 @@ class Decoder extends Module {
 
   // U-Type instructions
   when(io.instr === Instruction.LUI) {
-    io.wb.aluOp := ALUOp.Noop
-    io.wb.aluInput2Source := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Noop
+    io.ex.aluInput2 := ALUInput2.Imm
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.U
   }
   when(io.instr === Instruction.AUIPC) {
-    io.wb.aluOp := ALUOp.Add
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.U
@@ -81,10 +83,10 @@ class Decoder extends Module {
 
   // J-Type
   when(io.instr === Instruction.JAL) {
-    io.wb.aluOp := ALUOp.Add
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.branchType := BranchType.J
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.branchType := BranchType.J
     io.wb.writeSource := WriteSource.Pc
     io.wb.writeEnable := true.B
     format := Format.J
@@ -92,10 +94,10 @@ class Decoder extends Module {
 
   // I-Type
   when(io.instr === Instruction.JALR) {
-    io.wb.aluOp := ALUOp.Add
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.branchType := BranchType.J
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.branchType := BranchType.J
     io.wb.writeSource := WriteSource.Pc
     io.wb.writeEnable := true.B
     format := Format.I
@@ -103,98 +105,113 @@ class Decoder extends Module {
   when(io.instr === Instruction.LW) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.ex.memOp := MemOp.Load
-    io.ex.memSize := MemSize.Word
+    io.mem.memOp := MemOp.Load
+    io.mem.memSize := MemSize.Word
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LB) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.ex.memOp := MemOp.Load
-    io.ex.memSize := MemSize.Byte
+    io.mem.memOp := MemOp.Load
+    io.mem.memSize := MemSize.Byte
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LH) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.ex.memOp := MemOp.Load
-    io.ex.memSize := MemSize.HalfWord
+    io.mem.memOp := MemOp.Load
+    io.mem.memSize := MemSize.HalfWord
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LBU) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.ex.memOp := MemOp.Load
-    io.ex.memSize := MemSize.Byte
+    io.mem.memOp := MemOp.Load
+    io.mem.memSize := MemSize.Byte
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LHU) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.ex.memOp := MemOp.Load
-    io.ex.memSize := MemSize.HalfWord
+    io.mem.memOp := MemOp.Load
+    io.mem.memSize := MemSize.HalfWord
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.ADDI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.SLLI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Sll
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Sll
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.SRLI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Srl
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Srl
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.SLTI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Slt
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Slt
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.SLTIU) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Sltu
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Sltu
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.XORI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Xor
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Xor
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.ORI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Or
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Or
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
   when(io.instr === Instruction.ANDI) {
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.And
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.And
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
@@ -202,133 +219,136 @@ class Decoder extends Module {
 
   // B-Type
   when(io.instr === Instruction.BEQ) {
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.branchType := BranchType.BEQ
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.branchType := BranchType.BEQ
     format := Format.B
   }
   when(io.instr === Instruction.BNE) {
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.branchType := BranchType.BNE
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.branchType := BranchType.BNE
     format := Format.B
   }
   when(io.instr === Instruction.BLT) {
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.branchType := BranchType.BLT
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.branchType := BranchType.BLT
     format := Format.B
   }
   when(io.instr === Instruction.BGE) {
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.branchType := BranchType.BGE
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.branchType := BranchType.BGE
     format := Format.B
   }
   when(io.instr === Instruction.BLTU) {
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.branchType := BranchType.BLTU
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.branchType := BranchType.BLTU
     format := Format.B
   }
   when(io.instr === Instruction.BGEU) {
-    io.wb.aluInput1Source := ALUInput1.Pc
-    io.wb.aluInput2Source := ALUInput2.Imm
-    io.wb.aluOp := ALUOp.Add
-    io.wb.branchType := BranchType.BGEU
+    io.ex.aluInput1 := ALUInput1.Pc
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Add
+    io.ex.branchType := BranchType.BGEU
     format := Format.B
   }
 
   // S-Type
   // SB, SH missing
   when(io.instr === Instruction.SW) {
-    io.ex.memOp := MemOp.Store
-    io.ex.memSize := MemSize.Word
+    io.mem.memOp := MemOp.Store
+    io.mem.memSize := MemSize.Word
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.S
   }
 
   // R-Type
   when(io.instr === Instruction.ADD) {
-    io.wb.aluOp := ALUOp.Add
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.SUB) {
-    io.wb.aluOp := ALUOp.Sub
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Sub
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.SLL) {
-    io.wb.aluOp := ALUOp.Sll
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Sll
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.SLT) {
-    io.wb.aluOp := ALUOp.Slt
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Slt
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.SLTU) {
-    io.wb.aluOp := ALUOp.Sltu
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Sltu
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.XOR) {
-    io.wb.aluOp := ALUOp.Xor
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Xor
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.SRL) {
-    io.wb.aluOp := ALUOp.Srl
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Srl
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.SRA) {
-    io.wb.aluOp := ALUOp.Sra
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Sra
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.OR) {
-    io.wb.aluOp := ALUOp.Or
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.Or
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
   when(io.instr === Instruction.AND) {
-    io.wb.aluOp := ALUOp.And
-    io.wb.aluInput1Source := ALUInput1.Rs1
-    io.wb.aluInput2Source := ALUInput2.Rs2
+    io.ex.aluOp := ALUOp.And
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Rs2
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
