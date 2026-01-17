@@ -107,6 +107,9 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.Memory
     io.mem.memOp := MemOp.Load
     io.mem.memSize := MemSize.Word
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LB) {
@@ -114,6 +117,9 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.Memory
     io.mem.memOp := MemOp.Load
     io.mem.memSize := MemSize.Byte
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LH) {
@@ -121,6 +127,9 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.Memory
     io.mem.memOp := MemOp.Load
     io.mem.memSize := MemSize.HalfWord
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LBU) {
@@ -128,6 +137,9 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.Memory
     io.mem.memOp := MemOp.Load
     io.mem.memSize := MemSize.Byte
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.LHU) {
@@ -135,6 +147,9 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.Memory
     io.mem.memOp := MemOp.Load
     io.mem.memSize := MemSize.HalfWord
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.I
   }
   when(io.instr === Instruction.ADDI) {
@@ -251,6 +266,9 @@ class Decoder extends Module {
   when(io.instr === Instruction.SW) {
     io.mem.memOp := MemOp.Store
     io.mem.memSize := MemSize.Word
+    io.ex.aluOp := ALUOp.Add
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
     format := Format.S
   }
 
