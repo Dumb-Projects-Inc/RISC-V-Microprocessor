@@ -51,8 +51,8 @@ class CacheController() extends Module {
       )
     )
 
-  val instrRegion = getRegion(io.instrPort.addr)
-  val dataRegion = getRegion(io.dataPort.addr)
+  val instrRegion = RegNext(getRegion(io.instrPort.addr), MemoryRegions.ROM)
+  val dataRegion = RegNext(getRegion(io.dataPort.addr), MemoryRegions.ROM)
   io.instrPort.stall := false.B
   io.dataPort.stall := false.B
 
