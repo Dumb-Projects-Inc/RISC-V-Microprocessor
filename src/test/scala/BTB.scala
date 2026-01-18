@@ -34,6 +34,7 @@ class BTBSpec extends AnyFunSpec with ChiselSim {
           dut.io.update.targetPc.poke(target.U)
           dut.clock.step()
           dut.io.update.valid.poke(false.B)
+          dut.clock.step()
         }
 
         // init
@@ -45,10 +46,8 @@ class BTBSpec extends AnyFunSpec with ChiselSim {
 
         val pcA = BigInt("00000000", 16) // index 0
         val pcB = BigInt("00000020", 16) // also index 0, different tag
-        val pcC = BigInt(
-          "00000040",
-          16
-        ) // also index 0, different tag will replace
+        val pcC =
+          BigInt("00000040", 16) // also index 0, different tag will replace
 
         val tA = BigInt("10000100", 16)
         val tB = BigInt("20000200", 16)
