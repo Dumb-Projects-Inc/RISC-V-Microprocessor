@@ -3,6 +3,12 @@ package riscv.branchPred
 import chisel3._
 import chisel3.util._
 
+class BTBEntry(tagBits: Int) extends Bundle {
+  val valid = Bool()
+  val tag = UInt(tagBits.W)
+  val target = UInt(32.W)
+}
+
 class BTB(entries: Int) extends Module {
   val io = IO(new Bundle {
     val currentPc = Input(UInt(32.W))
@@ -21,31 +27,31 @@ class BTB(entries: Int) extends Module {
   val indexBits = log2Ceil(sets)
   val tagBits = 32 - 2 - indexBits
 
-  val validTable = RegInit(
-    VecInit(Seq.fill(sets)(VecInit(Seq.fill(ways)(false.B))))
-  )
-  val tagTable = Reg(Vec(sets, Vec(ways, UInt(tagBits.W))))
-  val targetPcTable = Reg(Vec(sets, Vec(ways, UInt(32.W))))
+  val way1 = SyncReadMem(sets, new BTBEntry(tagBits))
+  val way2 = SyncReadMem(sets, new BTBEntry(tagBits))
+
   val lru = RegInit(VecInit(Seq.fill(sets)(0.U(1.W))))
 
   def getIndex(pc: UInt): UInt = pc(1 + indexBits, 2)
   def getTag(pc: UInt): UInt = pc(31, 2 + indexBits)
 
-  val hit1 = (validTable(getIndex(io.currentPc))(0) && (tagTable(
-    getIndex(io.currentPc)
-  )(0) === getTag(io.currentPc)))
-  val hit2 = (validTable(getIndex(io.currentPc))(1) && (tagTable(
-    getIndex(io.currentPc)
-  )(1) === getTag(io.currentPc)))
+  val idxReq = getIndex(io.currentPc)
+  val tagReq = getTag(io.currentPc)
 
+  val tagReqR = RegNext(tagReq)
+
+  val entry1 = way1.read(idxReq, true.B)
+  val entry2 = way2.read(idxReq, true.B)
+
+  val hit1 = entry1.valid && (entry1.tag === tagReqR)
+  val hit2 = entry2.valid && (entry2.tag === tagReqR)
   io.hit := hit1 || hit2
-  io.targetPc := 0.U
 
   when(hit1 || hit2) {
     when(hit1) {
-      io.targetPc := targetPcTable(getIndex(io.currentPc))(0)
+      io.targetPc := entry1.target
     }.otherwise {
-      io.targetPc := targetPcTable(getIndex(io.currentPc))(1)
+      io.targetPc := entry2.target
     }
   }
 
@@ -53,31 +59,19 @@ class BTB(entries: Int) extends Module {
   when(io.update.valid) {
     val updateIndex = getIndex(io.update.pc)
     val updateTag = getTag(io.update.pc)
-    when(hit1) {
-      targetPcTable(updateIndex)(0) := io.update.targetPc
-      lru(updateIndex) := 1.U
-    }.elsewhen(hit2) {
-      targetPcTable(updateIndex)(1) := io.update.targetPc
-      lru(updateIndex) := 0.U
-    }.otherwise {
-      when(lru(updateIndex) === 1.U) {
-        validTable(updateIndex)(0) := true.B
-        tagTable(updateIndex)(0) := updateTag
-        targetPcTable(updateIndex)(0) := io.update.targetPc
-        lru(updateIndex) := 0.U
-      }.elsewhen(lru(updateIndex) === 0.U) {
-        validTable(updateIndex)(1) := true.B
-        tagTable(updateIndex)(1) := updateTag
-        targetPcTable(updateIndex)(1) := io.update.targetPc
-        lru(updateIndex) := 1.U
-      }.otherwise {
-        validTable(updateIndex)(0) := true.B
-        tagTable(updateIndex)(0) := updateTag
-        targetPcTable(updateIndex)(0) := io.update.targetPc
-        lru(updateIndex) := 1.U
-      }
-    }
 
+    val newEntry = Wire(new BTBEntry(tagBits))
+    newEntry.valid := true.B
+    newEntry.tag := updateTag
+    newEntry.target := io.update.targetPc
+
+    when(lru(updateIndex) === 0.U) {
+      way1.write(updateIndex, newEntry)
+      lru(updateIndex) := 1.U
+    }.otherwise {
+      way2.write(updateIndex, newEntry)
+      lru(updateIndex) := 0.U
+    }
   }
 
 }
