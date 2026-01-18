@@ -6,6 +6,7 @@ import circt.stage.{ChiselStage, FirtoolOption}
 import riscv.memory.CacheController
 import riscv.memory.InstructionROM
 import riscv.memory.Bootloader
+import lib.peripherals.MMIOUart
 
 class RV32Debug extends Bundle {
   val instrAddr = UInt(32.W)
@@ -19,17 +20,23 @@ class RV32Debug extends Bundle {
   *
   * @param debug
   */
-class RV32ITop(debug: Boolean = false) extends Module with RequireSyncReset {
+class RV32ITop(program: String = "", debug: Boolean = false)
+    extends Module
+    with RequireSyncReset {
   val io = IO(new Bundle {
     // val sw = Input(Bits(16.W)) // 16 switches that should be readable
     val btn = Input(Bits(4.W)) // 4 buttons (1 for reset)
     val LED = Output(Bits(16.W)) // 16 LEDs that should be writable
 
-    // val txd = Output(Bool()) // for uart
-    // val rxd = Input(Bool()) // for uart
+    val txd = Output(Bool()) // for uart
+    val rxd = Input(Bool()) // for uart
   })
+  var prog_bytes = Bootloader.HELLO_WORLD_HEX
+  if (program.nonEmpty) {
+    prog_bytes = Bootloader.filetoSeq(program)
+  }
 
-  val ROM = Module(new InstructionROM(program = Bootloader.TEST_HEX))
+  val ROM = Module(new InstructionROM(program = prog_bytes))
   val MMU = Module(
     new CacheController()
   )
@@ -43,6 +50,15 @@ class RV32ITop(debug: Boolean = false) extends Module with RequireSyncReset {
 
   ROM.io.addr := pipeline.io.instrPort.addr
   MMU.io.ROMIn := ROM.io.instruction
+
+  val uart = Module(
+    new MMIOUart(Freq = 100000000, BaudRate = 9600, baseAddr = 0x00001000)
+  )
+  io.txd := uart.io.tx
+  uart.io.rx := io.rxd
+
+  MMU.io.bus <> uart.io.dbus
+
   val led = RegInit(255.U(16.W))
   when(pipeline.io.dataPort.enable) {
     led := pipeline.io.dataPort.addr(15, 0)
@@ -72,11 +88,15 @@ object RV32IMain {
       "generated",
       "--split-verilog"
     )
+    var program = ""
+    if (args.nonEmpty) {
+      program = args(0)
+    }
 
     (new ChiselStage).execute(
       stageArgs,
       Seq(
-        ChiselGeneratorAnnotation(() => new RV32ITop()),
+        ChiselGeneratorAnnotation(() => new RV32ITop(program = program)),
         FirtoolOption("--disable-all-randomization")
       )
     )

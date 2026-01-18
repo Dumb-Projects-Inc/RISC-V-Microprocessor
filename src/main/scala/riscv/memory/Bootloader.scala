@@ -1,6 +1,7 @@
 package riscv.memory
 
 import com.carlosedp.riscvassembler.RISCVAssembler
+import chisel3._
 
 /** Bootloader assembly programs, this should include a way to read files later.
   */
@@ -42,11 +43,75 @@ object Bootloader {
   addi x0, x0, 0
   addi x0, x0, 0 
 """
-  def assemble(program: String): String = {
+  private val helloWorld = """
+  start:
+  lui x10, 0x00001        
+  addi x10, x10, 0        
+  addi x11, x0, 72    
+  sw x11, 0(x10)
+  addi x11, x0, 101   
+  sw x11, 0(x10)
+  addi x11, x0, 108   
+  sw x11, 0(x10)
+  addi x11, x0, 108   
+  sw x11, 0(x10)
+  addi x11, x0, 111   
+  sw x11, 0(x10)
+  addi x11, x0, 44
+  sw x11, 0(x10)
+  addi x11, x0, 32
+  sw x11, 0(x10)
+  addi x11, x0, 87
+  sw x11, 0(x10)
+  addi x11, x0, 111
+  sw x11, 0(x10)
+  addi x11, x0, 114
+  sw x11, 0(x10)
+  addi x11, x0, 108
+  sw x11, 0(x10)
+  addi x11, x0, 100
+  sw x11, 0(x10)
+  addi x11, x0, 33
+  sw x11, 0(x10)
+  addi x11, x0, 10
+  sw x11, 0(x10)
+  lui x3, 0x006D0
+  delay:
+    addi x3, x3, -1
+    bne x3, x0, delay
+  jal x0, start
+  """
+
+  def assemble(program: String): Seq[UInt] = {
     RISCVAssembler
       .fromString(program)
+      .split("\\R")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .map(h => BigInt(h, 16).U(32.W))
+      .toSeq
   }
 
-  val TEST_HEX: String = assemble(TEST)
-  val ROM_HEX: String = assemble(ROM)
+  def BinToSeq(bin: Array[Byte]): Seq[UInt] = {
+    bin
+      .grouped(4)
+      .map { bytes =>
+        val word = bytes.zipWithIndex
+          .map { case (b, i) => BigInt(b & 0xff) << (8 * i) }
+          .foldLeft(BigInt(0))(_ | _)
+        word.U(32.W)
+      }
+      .toSeq
+  }
+
+  def filetoSeq(path: String): Seq[UInt] = {
+    val bin = java.nio.file.Files.readAllBytes(
+      java.nio.file.Paths.get(path)
+    )
+    BinToSeq(bin)
+  }
+
+  val TEST_HEX: Seq[UInt] = assemble(TEST)
+  val ROM_HEX: Seq[UInt] = assemble(ROM)
+  val HELLO_WORLD_HEX: Seq[UInt] = assemble(helloWorld)
 }

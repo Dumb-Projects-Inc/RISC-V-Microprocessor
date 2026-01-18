@@ -50,5 +50,5 @@ set_property PACKAGE_PIN U18 [get_ports reset]
 #set_property PACKAGE_PIN V20 [get_ports io_btnD]
 
 ##USB-RS232 Interface (UART)		
-#set_property PACKAGE_PIN A18 [get_ports io_txd]
-#set_property PACKAGE_PIN B18 [get_ports io_rxd]	
+set_property PACKAGE_PIN A18 [get_ports io_txd]
+set_property PACKAGE_PIN B18 [get_ports io_rxd]	
