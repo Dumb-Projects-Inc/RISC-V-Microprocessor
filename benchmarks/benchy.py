@@ -51,7 +51,7 @@ def main():
     port_index = int(input("Port: "))
     port_name = device_list[port_index]
     baud_rate = 115200
-    with serial.Serial(port_name, baud_rate, timeout=1) as ser:
+    with serial.Serial(port_name, baud_rate, timeout=1, stopbits=2) as ser:
         print(f"Connected to {port_name} at {baud_rate} baud.")
         print("Reset board or load program to start benchmark.")
         default_benchmark(ser)

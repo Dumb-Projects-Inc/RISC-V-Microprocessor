@@ -1,7 +1,7 @@
 # Makefile for the RISC-V benchmarks
 
 # Default configuration
-UART_ADDR ?= 0x10000000
+UART_ADDR ?= 0x00001000
 NUM_PRIMES ?= 25
 
 CSR_EN ?= N
@@ -23,7 +23,7 @@ OBJCOPY = $(CROSS)objcopy
 
 # Compiler flags for RV32I bare metal
 CFLAGS = -mabi=ilp32 -O0 
-CFLAGS += -ffreestanding -nostdlib -e main -T linker.ld
+CFLAGS += -ffreestanding -nostdlib -e entry -T linker.ld
 
 # Pass configuration to C code
 DEFINES = -DUART_ADDR=$(UART_ADDR) -DNUM_PRIMES=$(NUM_PRIMES)
