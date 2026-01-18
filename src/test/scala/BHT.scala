@@ -1,4 +1,4 @@
-package riscv
+package riscv.branchPred
 
 import chisel3._
 import org.scalatest.funspec.AnyFunSpec
@@ -7,7 +7,7 @@ import chisel3.simulator.scalatest.ChiselSim
 class BHTSpec extends AnyFunSpec with ChiselSim {
   describe("BHT") {
     it("should predict branches correctly") {
-      simulate(new riscv.branchPred.BHT(16)) { dut =>
+      simulate(new BHT(16)) { dut =>
         dut.io.update.poke(false.B)
         dut.io.taken.poke(false.B)
         dut.io.updatePc.poke(0.U)

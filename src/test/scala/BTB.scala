@@ -1,4 +1,4 @@
-package riscv
+package riscv.branchPred
 
 import chisel3._
 import org.scalatest.funspec.AnyFunSpec
@@ -7,7 +7,7 @@ import chisel3.simulator.scalatest.ChiselSim
 class BTBSpec extends AnyFunSpec with ChiselSim {
   describe("BTB") {
     it("should hit/miss and handle 2-way replacement in a readable way") {
-      simulate(new riscv.branchPred.BTB(16)) { dut =>
+      simulate(new BTB(16)) { dut =>
         // made some helper functions for more easy use
         def pokeLookup(pc: BigInt): Unit = {
           dut.io.currentPc.poke(pc.U)
