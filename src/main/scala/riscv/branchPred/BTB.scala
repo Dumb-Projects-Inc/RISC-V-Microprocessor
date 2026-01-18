@@ -46,6 +46,7 @@ class BTB(entries: Int) extends Module {
   val hit1 = entry1.valid && (entry1.tag === tagReqR)
   val hit2 = entry2.valid && (entry2.tag === tagReqR)
   io.hit := hit1 || hit2
+  io.targetPc := 0.U
 
   when(hit1 || hit2) {
     when(hit1) {
