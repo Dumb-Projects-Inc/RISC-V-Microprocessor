@@ -5,7 +5,7 @@
 	.attribute stack_align, 16
 	.text
  #APP
-	li sp, 0x100000
+	li sp, 0x00014000
 	jal main
 	li a7, 10
 	ecall
