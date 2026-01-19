@@ -16,7 +16,7 @@ object ALUOp extends ChiselEnum {
 }
 
 object WriteSource extends ChiselEnum {
-  val ALU, Memory, Pc = Value
+  val ALU, Memory, Pc, CSR = Value
 }
 
 object MemOp extends ChiselEnum {
@@ -42,11 +42,34 @@ class Decoder extends Module {
     val ex = Output(new ControlSignals.EX())
     val mem = Output(new ControlSignals.MEM())
     val wb = Output(new ControlSignals.WB())
+
+    // For CSR
+    val isEcall = Output(Bool())
+    val isMret = Output(Bool())
+    val trapCause = Output(UInt(32.W))
+    val csrValid = Output(Bool())
+    val csrAddr = Output(UInt(12.W))
+    val csrCmd = Output(CSRCmd())
+    val csrUseImm = Output(Bool())
+    val csrZimm = Output(UInt(5.W))
+
   })
 
   io.ex := DontCare
   io.mem := DontCare
   io.wb := DontCare
+
+  io.isEcall := false.B
+  io.isMret := false.B
+  io.trapCause := 0.U
+  io.csrValid := false.B
+  io.csrAddr := 0.U
+  io.csrCmd := CSRCmd.RW
+  io.csrUseImm := false.B
+  io.csrZimm := 0.U
+
+  val csrAddrField = io.instr(31, 20)
+  val zimm = io.instr(19, 15)
 
   io.mem.memOp := MemOp.Noop
 
@@ -360,6 +383,100 @@ class Decoder extends Module {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
+  }
+
+  when(io.instr === Instruction.ECALL) {
+    io.isEcall := true.B
+    io.trapCause := 11.U
+  }
+
+  when(io.instr === Instruction.MRET) {
+    io.isMret := true.B
+  }
+
+  // CSR
+  when(io.instr === Instruction.CSRRW) {
+    io.csrValid := true.B
+    io.csrAddr := csrAddrField
+    io.csrCmd := CSRCmd.RW
+    io.csrUseImm := false.B
+    io.csrZimm := 0.U
+
+    io.wb.writeEnable := (io.wb.rd =/= 0.U)
+    io.wb.writeSource := WriteSource.CSR
+    io.mem.memOp := MemOp.Noop
+    io.ex.branchType := BranchType.NO
+    io.ex.aluOp := ALUOp.Noop
+  }
+
+  when(io.instr === Instruction.CSRRS) {
+    io.csrValid := true.B
+    io.csrAddr := csrAddrField
+    io.csrCmd := CSRCmd.RS
+    io.csrUseImm := false.B
+    io.csrZimm := 0.U
+
+    io.wb.writeEnable := (io.wb.rd =/= 0.U)
+    io.wb.writeSource := WriteSource.CSR
+    io.mem.memOp := MemOp.Noop
+    io.ex.branchType := BranchType.NO
+    io.ex.aluOp := ALUOp.Noop
+  }
+
+  when(io.instr === Instruction.CSRRC) {
+    io.csrValid := true.B
+    io.csrAddr := csrAddrField
+    io.csrCmd := CSRCmd.RC
+    io.csrUseImm := false.B
+    io.csrZimm := 0.U
+
+    io.wb.writeEnable := (io.wb.rd =/= 0.U)
+    io.wb.writeSource := WriteSource.CSR
+    io.mem.memOp := MemOp.Noop
+    io.ex.branchType := BranchType.NO
+    io.ex.aluOp := ALUOp.Noop
+  }
+
+  when(io.instr === Instruction.CSRRWI) {
+    io.csrValid := true.B
+    io.csrAddr := csrAddrField
+    io.csrCmd := CSRCmd.RW
+    io.csrUseImm := true.B
+    io.csrZimm := zimm
+
+    io.wb.writeEnable := (io.wb.rd =/= 0.U)
+    io.wb.writeSource := WriteSource.CSR
+    io.mem.memOp := MemOp.Noop
+    io.ex.branchType := BranchType.NO
+    io.ex.aluOp := ALUOp.Noop
+  }
+
+  when(io.instr === Instruction.CSRRSI) {
+    io.csrValid := true.B
+    io.csrAddr := csrAddrField
+    io.csrCmd := CSRCmd.RS
+    io.csrUseImm := true.B
+    io.csrZimm := zimm
+
+    io.wb.writeEnable := (io.wb.rd =/= 0.U)
+    io.wb.writeSource := WriteSource.CSR
+    io.mem.memOp := MemOp.Noop
+    io.ex.branchType := BranchType.NO
+    io.ex.aluOp := ALUOp.Noop
+  }
+
+  when(io.instr === Instruction.CSRRCI) {
+    io.csrValid := true.B
+    io.csrAddr := csrAddrField
+    io.csrCmd := CSRCmd.RC
+    io.csrUseImm := true.B
+    io.csrZimm := zimm
+
+    io.wb.writeEnable := (io.wb.rd =/= 0.U)
+    io.wb.writeSource := WriteSource.CSR
+    io.mem.memOp := MemOp.Noop
+    io.ex.branchType := BranchType.NO
+    io.ex.aluOp := ALUOp.Noop
   }
 }
 

@@ -176,6 +176,22 @@ class Pipeline(
     ID_EX_reg := ResetPipeline.ID_EX()
   }
 
+  // CSR
+  val csr = Module(new CSR())
+  csr.io.currentPc := ID_EX_reg.wb.pc
+  csr.io.trap.valid := decoder.io.isEcall
+  csr.io.trap.cause := decoder.io.trapCause
+  csr.io.retValid := decoder.io.isMret
+  csr.io.csr.valid := decoder.io.csrValid
+  csr.io.csr.addr := decoder.io.csrAddr
+  csr.io.csr.cmd := decoder.io.csrCmd
+
+  when(decoder.io.csrUseImm) {
+    csr.io.csr.writeData := decoder.io.csrZimm.zext.asUInt
+  }.otherwise {
+    csr.io.csr.writeData := rs1
+  }
+
   // STAGE: Execute, decide branch
 
   val hazardExMemRs1 =
@@ -250,9 +266,16 @@ class Pipeline(
   opResult := MuxLookup(MEM_WB_reg.wb.writeSource, MEM_WB_reg.wb.aluResult)(
     Seq(
       WriteSource.Memory -> io.dataPort.dataRead,
-      WriteSource.Pc -> (MEM_WB_reg.wb.pc + 4.U)
+      WriteSource.Pc -> (MEM_WB_reg.wb.pc + 4.U),
+      WriteSource.CSR -> csr.io.csr.readData
     )
   )
+
+  // CSR redirection last to overwrite "when(EX_MEM_reg.mem.branch) {"
+  when(csr.io.redirect.valid) {
+    nextPc := csr.io.redirect.pc
+    flush := true.B
+  }
 
   registers.io.writeData := opResult
   registers.io.wrEn := MEM_WB_reg.wb.writeEnable
