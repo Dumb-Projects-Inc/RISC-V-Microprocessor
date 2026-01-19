@@ -15,12 +15,13 @@ object MemoryRegions extends ChiselEnum {
 }
 
 object MemoryMap {
-  // val RomStart = 0x00000000
-  val RomEnd = 0x00000fff
-  // val PeripheralsStart = 0x00001000
-  val PeripheralsEnd = 0x0000ffff
-  // val ProgramMemoryStart = 0x00010000
-  // val ProgramMemoryEnd = 0x00700000 // External memory decides how much is available
+  val dataStart = 0x00000000L
+  val dataEnd = 0x00000fffL // 4kb
+  // Unmapped data region 0x00002000 - 0x00000FFF
+  val peripheralsStart = 0x00001000L
+  val peripheralsEnd = 0x0000ffffL // 60kb
+  val romStart = 0xfff10000L
+  val romEnd = 0xfff1ffffL // 4kb
 }
 
 class Pending extends Bundle {
@@ -100,13 +101,17 @@ class CacheController() extends Module {
     MuxCase(
       MemoryRegions.ProgramMemory,
       Seq(
-        (addr <= MemoryMap.RomEnd.U) -> MemoryRegions.ROM,
-        (addr <= MemoryMap.PeripheralsEnd.U) -> MemoryRegions.Peripherals
+        (addr <= (MemoryMap.dataEnd - 1).U) -> MemoryRegions.ProgramMemory,
+        (addr >= MemoryMap.peripheralsStart.U && addr <= MemoryMap.peripheralsEnd.U) -> MemoryRegions.Peripherals,
+        (addr >= MemoryMap.romStart.U && addr <= MemoryMap.romEnd.U) -> MemoryRegions.ROM
       )
     )
 
-  val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
-  val DDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
+  // val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
+  val DDat = SyncReadMem(
+    4096,
+    Vec(4, UInt(8.W))
+  ) // 4KB data cache // vec to enable masks
 
   val IReq = Request(io.instrPort.enable, true.B, getRegion(io.instrPort.addr))
   val IResp = RegNext(
@@ -121,30 +126,6 @@ class CacheController() extends Module {
     0.U.asTypeOf(new Response)
   )
 
-  // Issue reads in request
-  val ramRd = IDat.read(
-    io.instrPort.addr(11, 2),
-    IReq.region === MemoryRegions.ProgramMemory
-  )
-
-  io.instrPort.stall := IResp.region === MemoryRegions.Peripherals
-
-  when(IResp.valid) {
-    io.instrPort.instr := MuxCase(
-      0.U,
-      Seq(
-        (IResp.region === MemoryRegions.ROM) -> io.ROMIn,
-        (IResp.region === MemoryRegions.ProgramMemory) -> ramRd
-      )
-    )
-  }.otherwise {
-    io.instrPort.instr := 0.U
-  }
-
-  // ******************************
-  // Data Port
-  // ******************************
-
   val DReq = Request(
     io.dataPort.enable,
     !io.dataPort.writeEn,
@@ -153,7 +134,7 @@ class CacheController() extends Module {
   val DResp = RegNext(
     Response(
       DReq.valid,
-      !DReq.load,
+      io.dataPort.writeEn,
       io.dataPort.memSize,
       DReq.region,
       io.dataPort.addr,
@@ -162,87 +143,78 @@ class CacheController() extends Module {
     0.U.asTypeOf(new Response)
   )
 
-  // always get data if in Program Memory region
-  val ramIndexReq = (io.dataPort.addr - 0x00010000.U)(11, 2)
-  val ramData =
-    DDat.read(
-      ramIndexReq,
-      DReq.valid && DReq.region === MemoryRegions.ProgramMemory
-    )
+  // always fetch instructions from both idat and rom
+  val iDatData = DDat.read(io.instrPort.addr(13, 2), IReq.valid)
+  val iRomData = io.ROMIn
 
-  val busReq = DReq.region === MemoryRegions.Peripherals && DReq.valid
-  when(busReq) {
-    when(DReq.load) {
-      io.bus.readRequest(io.dataPort.addr)
-    }.otherwise {
-      io.bus.writeRequest(io.dataPort.addr, io.dataPort.dataWrite)
+  when(IResp.valid) {
+    io.instrPort.instr := MuxCase(
+      0.U,
+      Seq(
+        (IResp.region === MemoryRegions.ProgramMemory) -> iDatData.asUInt,
+        (IResp.region === MemoryRegions.ROM) -> iRomData
+      )
+    )
+  }
+
+  // always fetch data from  ddat
+  val dDatData = DDat.read(io.dataPort.addr(13, 2), DReq.valid)
+  when(DReq.valid) {
+    // load request
+    when(DReq.region === MemoryRegions.Peripherals) {
+      // peripheral read through bus
+      when(DReq.load) {
+        // read from peripheral
+        io.bus.readRequest(io.dataPort.addr)
+      }.otherwise {
+        // write to peripheral, this only supports word writes for now
+        io.bus.writeRequest(
+          io.dataPort.addr,
+          io.dataPort.dataWrite
+        )
+      }
     }
   }
 
-  val lastRead = Reg(UInt(32.W))
   when(DResp.valid) {
-    lastRead := ramData
-    when(!DResp.write) {
-      val data = MuxCase(
-        0.U,
-        Seq(
-          (DResp.region === MemoryRegions.ROM) -> io.ROMIn,
-          (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData,
-          (DResp.region === MemoryRegions.ProgramMemory) -> ramData
-        )
+    val data = MuxCase(
+      0.U,
+      Seq(
+        (DResp.region === MemoryRegions.ProgramMemory) -> dDatData.asUInt,
+        (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData
       )
+    )
+    when(!DResp.write) {
+      // load
+      val offset = DResp.respAddr(1, 0)
       io.dataPort.dataRead := MuxCase(
         0.U,
-        // This should really sign extend for byte and halfword loads
         Seq(
-          (DResp.size === MemSize.Byte) -> 0.U(24.W) ## data(7, 0),
-          (DResp.size === MemSize.HalfWord) -> 0.U(16.W) ## data(15, 0),
-          (DResp.size === MemSize.Word) -> data
+          (DResp.size === MemSize.Byte) -> (data.asUInt >> (offset << 3))(7, 0),
+          (DResp.size === MemSize.HalfWord) -> (data.asUInt >> (offset(
+            1
+          ) << 4))(15, 0),
+          (DResp.size === MemSize.Word) -> data.asUInt
         )
       )
-    }
-  }.otherwise {
-    io.dataPort.dataRead := 0.U
-  }
-
-  when(DResp.valid && DResp.write) {
-    when(DResp.region === MemoryRegions.ProgramMemory) {
-      // calculate the data based on memsize
+    }.elsewhen(DResp.region === MemoryRegions.ProgramMemory && DResp.write) {
+      // store to data cache only
       val offset = DResp.respAddr(1, 0)
-      // put data into lastRead based on size and offset
-      val data = Wire(UInt(32.W))
-      data := MuxCase(
-        lastRead,
+      val writeData = DResp.data
+      val mask = MuxCase(
+        "b0000".U(4.W),
         Seq(
-          (DResp.size === MemSize.Byte) -> Mux1H(
-            Seq(
-              (offset === 0.U) -> DResp.data(7, 0) ## lastRead(
-                23,
-                0
-              ),
-              (offset === 1.U) -> lastRead(31, 24) ## DResp
-                .data(7, 0) ## lastRead(15, 0),
-              (offset === 2.U) -> lastRead(31, 16) ## DResp
-                .data(7, 0) ## lastRead(7, 0),
-              (offset === 3.U) -> lastRead(31, 8) ## DResp.data(7, 0)
-            )
-          ),
-          (DResp.size === MemSize.HalfWord) -> Mux1H(
-            Seq(
-              (offset === 0.U) -> DResp.data(15, 0) ## lastRead(
-                15,
-                0
-              ),
-              (offset === 2.U) -> lastRead(31, 16) ## DResp
-                .data(15, 0)
-            )
-          ),
-          (DResp.size === MemSize.Word) -> DResp.data
+          (DResp.size === MemSize.Byte) -> (1.U(4.W) << offset),
+          (DResp.size === MemSize.HalfWord) -> (3.U(4.W) << (offset(1) << 1)),
+          (DResp.size === MemSize.Word) -> "b1111".U(4.W)
         )
       )
-      // calculate address by:
-      val ramIndex = (DResp.respAddr - 0x00010000.U)(11, 2)
-      DDat.write(ramIndex, data)
+      DDat.write(
+        DResp.respAddr(12, 2),
+        writeData.asTypeOf(Vec(4, UInt(8.W))),
+        mask.asTypeOf(Vec(4, Bool()))
+      )
+
     }
   }
 

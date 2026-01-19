@@ -3,6 +3,8 @@ package riscv
 import chisel3._
 import chisel3.util._
 
+import riscv.memory.MemoryMap
+
 object ControlSignals {
   class EX extends Bundle {
     val aluOp = ALUOp()
@@ -130,7 +132,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val MEM_WB_reg = RegInit(ResetPipeline.MEM_WB())
 
   // Stage: Fetch
-  val pc = RegInit(0.U(32.W))
+  val pc = RegInit(MemoryMap.romStart.U(32.W))
   val nextPc = WireDefault(pc + 4.U)
 
   when(!stall) {

@@ -50,7 +50,7 @@ class RV32ITop(program: String = "", debug: Boolean = false)
   pipeline.io.instrPort <> MMU.io.instrPort
   pipeline.io.dataPort <> MMU.io.dataPort
 
-  ROM.io.addr := pipeline.io.instrPort.addr
+  ROM.io.addr := pipeline.io.instrPort.addr(12, 0)
   MMU.io.ROMIn := ROM.io.instruction
 
   val uart = Module(
