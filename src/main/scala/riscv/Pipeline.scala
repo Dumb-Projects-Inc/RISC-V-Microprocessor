@@ -113,8 +113,11 @@ class Debug extends Bundle {
   val regs = Vec(32, UInt(32.W))
 }
 
-class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
-    extends Module {
+class Pipeline(
+    debug: Boolean = false,
+    debugPrint: Boolean = false,
+    pcInit: Long = 0
+) extends Module {
   val io = IO(new Bundle {
     val instrPort = new instrPort()
     val dataPort = new dataPort()
@@ -132,7 +135,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   val MEM_WB_reg = RegInit(ResetPipeline.MEM_WB())
 
   // Stage: Fetch
-  val pc = RegInit(MemoryMap.romStart.U(32.W))
+  val pc = RegInit(pcInit.U(32.W))
   val nextPc = WireDefault(pc + 4.U)
 
   when(!stall) {

@@ -7,6 +7,7 @@ import riscv.memory.CacheController
 import riscv.memory.InstructionROM
 import riscv.memory.Bootloader
 import lib.peripherals.MMIOUart
+import riscv.memory.MemoryMap
 
 class RV32Debug extends Bundle {
   val instrAddr = UInt(32.W)
@@ -45,7 +46,9 @@ class RV32ITop(program: String = "", debug: Boolean = false)
 
   val deb_btn = RegNext(RegNext(io.btn), 0.U) // simple debouncer
 
-  val pipeline = Module(new Pipeline(debug = debug))
+  val pipeline = Module(
+    new Pipeline(debug = debug, pcInit = MemoryMap.romStart)
+  )
 
   pipeline.io.instrPort <> MMU.io.instrPort
   pipeline.io.dataPort <> MMU.io.dataPort
