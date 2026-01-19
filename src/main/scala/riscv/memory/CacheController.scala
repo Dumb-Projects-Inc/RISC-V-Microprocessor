@@ -16,13 +16,13 @@ object MemoryRegions extends ChiselEnum {
 }
 
 object MemoryMap {
-  val dataStart = 0x00000000L
-  val dataEnd = 0x00000fffL // 4kb
+  val dataStart = 0x0001_0000L
+  val dataEnd = 0x14000 // 16kb
   // Unmapped data region 0x00002000 - 0x00000FFF
   val peripheralsStart = 0x00001000L
   val peripheralsEnd = 0x0000ffffL // 60kb
-  val romStart = 0xfff10000L
-  val romEnd = 0xfff1ffffL // 4kb
+  val romStart = 0x0L
+  val romEnd = 0x0000_0fff // 4kb
 }
 
 object CacheSignals {
@@ -104,9 +104,9 @@ class CacheController() extends Module {
     MuxCase(
       MemoryRegions.ProgramMemory,
       Seq(
-        (addr <= (MemoryMap.dataEnd - 1).U) -> MemoryRegions.ProgramMemory,
+        (addr >= MemoryMap.romStart.U && addr <= MemoryMap.romEnd.U) -> MemoryRegions.ROM,
         (addr >= MemoryMap.peripheralsStart.U && addr <= MemoryMap.peripheralsEnd.U) -> MemoryRegions.Peripherals,
-        (addr >= MemoryMap.romStart.U && addr <= MemoryMap.romEnd.U) -> MemoryRegions.ROM
+        (addr >= MemoryMap.dataStart.U && addr <= (MemoryMap.dataEnd - 1).U) -> MemoryRegions.ProgramMemory
       )
     )
 
