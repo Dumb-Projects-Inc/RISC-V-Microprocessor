@@ -107,6 +107,7 @@ class dataPort extends Bundle {
 
 class Debug extends Bundle {
   val pc = UInt(32.W)
+  val writebackPc = UInt(32.W)
   val regs = Vec(32, UInt(32.W))
 }
 
@@ -152,6 +153,7 @@ class Pipeline(debug: Boolean = false, debugPrint: Boolean = false)
   if (debug) {
     dbg.get.regs := registers.dbg.get
     dbg.get.pc := pc
+    dbg.get.writebackPc := MEM_WB_reg.wb.pc
   }
 
   val decoder = Module(new Decoder)
