@@ -4,10 +4,6 @@ ThisBuild / organization := "Dumb-Projects-Inc"
 
 val chiselVersion = "7.6.0"
 
-lazy val isaSim = RootProject(
-  uri("https://github.com/Dumb-Projects-Inc/02155-RISC-V-ISA-SIM.git")
-)
-
 lazy val root = (project in file("."))
   .settings(
     name := "RISC-V-Microprocessor",
@@ -15,7 +11,8 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.chipsalliance" %% "chisel" % chiselVersion,
       "org.scalatest" %% "scalatest" % "3.2.19" % "test",
-      "com.github.push-and-pray" %% "riscvassembler" % "jp-SNAPSHOT"
+      "com.github.push-and-pray" %% "riscvassembler" % "jp-SNAPSHOT",
+      "com.github.Dumb-Projects-Inc" %% "02155-RISC-V-ISA-SIM" % "main-SNAPSHOT"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",
@@ -28,6 +25,5 @@ lazy val root = (project in file("."))
       "org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full
     )
   )
-  .dependsOn(isaSim % "test->compile")
 
 addCommandAlias("testVcd", "testOnly -- -DemitVcd=1")
