@@ -46,7 +46,7 @@ class TestTop(instr: String) extends Module {
   )
 
   when(
-    (pipeline.io.dataPort.memOp === MemOp.Load || pipeline.io.dataPort.memOp === MemOp.LoadUnsigned) && pipeline.io.dataPort.enable
+    (pipeline.io.dataPort.memOp === MemOp.Store) && pipeline.io.dataPort.enable
   ) {
     dmem.write(dmemAddr, pipeline.io.dataPort.dataWrite)
   }
