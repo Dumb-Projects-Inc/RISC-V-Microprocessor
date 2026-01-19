@@ -23,14 +23,20 @@ class RegisterFile(debug: Boolean = false)
   // Yes this wastes 32 bits for x0, but simplifies logic
   val regFile = SyncReadMem(32, UInt(32.W))
 
-  val r1Data = regFile.read(io.readReg1, true.B)
-  val r2Data = regFile.read(io.readReg2, true.B)
+  // Detect read during write
+  val collision1 =
+    (io.readReg1 === io.writeReg) && io.wrEn && (io.readReg1 =/= 0.U)
+  val collision2 =
+    (io.readReg2 === io.writeReg) && io.wrEn && (io.readReg2 =/= 0.U)
+
+  val r1 = Mux(collision1, RegNext(io.writeData), regFile.read(io.readReg1))
+  val r2 = Mux(collision2, RegNext(io.writeData), regFile.read(io.readReg2))
 
   val isZero1 = RegNext(io.readReg1, 1.U) === 0.U
   val isZero2 = RegNext(io.readReg2, 1.U) === 0.U
 
-  io.reg1Data := Mux(isZero1, 0.U, r1Data)
-  io.reg2Data := Mux(isZero2, 0.U, r2Data)
+  io.reg1Data := Mux(isZero1, 0.U, r1)
+  io.reg2Data := Mux(isZero2, 0.U, r2)
 
   when(io.wrEn && (io.writeReg =/= 0.U)) {
     regFile.write(io.writeReg, io.writeData)
