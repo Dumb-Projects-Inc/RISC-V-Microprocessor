@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import lib.Bus
 import riscv.MemSize
+import riscv.MemOp
 // Static Memory mapping
 // Following the https://riscv.org/blog/design-approaches-and-architectures-of-risc-v-socs/ embedded memory map
 // 0x0001_0000 - 0x0070_0000  : Program Memory (RAM)
@@ -24,54 +25,56 @@ object MemoryMap {
   val romEnd = 0xfff1ffffL // 4kb
 }
 
-class Pending extends Bundle {
-  val pending = Bool()
-  val region = MemoryRegions()
-  val addr = UInt(32.W)
-  val isBus = Bool()
-}
 object CacheSignals {
   class Request extends Bundle {
     val valid = Bool()
-    val load = Bool()
+    val memOp = MemOp()
     val region = MemoryRegions()
+    val size = MemSize()
+    val data = UInt(32.W)
   }
 
   class Response extends Bundle {
     val valid = Bool()
-    val write = Bool()
+    val memOp = MemOp()
     val size = MemSize()
     val region = MemoryRegions()
     val respAddr = UInt(32.W)
-    val data = UInt(32.W)
   }
 
   object Response {
     def apply(
         valid: Bool,
-        write: Bool,
+        memOp: MemOp.Type,
         size: MemSize.Type,
         region: MemoryRegions.Type,
-        respAddr: UInt,
-        data: UInt
+        respAddr: UInt = 0.U
     ) = {
       val bundle = Wire(new Response())
       bundle.valid := valid
-      bundle.write := write
+      bundle.memOp := memOp
       bundle.size := size
       bundle.region := region
       bundle.respAddr := respAddr
-      bundle.data := data
       bundle
     }
   }
 
   object Request {
-    def apply(valid: Bool, load: Bool, region: MemoryRegions.Type) = {
+    def apply(
+        valid: Bool,
+        memOp: MemOp.Type,
+        region: MemoryRegions.Type,
+        size: MemSize.Type,
+        data: UInt
+    ) = {
       val bundle = Wire(new Request())
       bundle.valid := valid
-      bundle.load := load
+      bundle.memOp := memOp
       bundle.region := region
+      bundle.size := size
+      bundle.data := data
+
       bundle
     }
   }
@@ -113,32 +116,39 @@ class CacheController() extends Module {
     Vec(4, UInt(8.W))
   ) // 4KB data cache // vec to enable masks
 
-  val IReq = Request(io.instrPort.enable, true.B, getRegion(io.instrPort.addr))
+  val IReq =
+    Request(
+      io.instrPort.enable,
+      MemOp.Load,
+      getRegion(io.instrPort.addr),
+      MemSize.Word,
+      0.U
+    )
   val IResp = RegNext(
     Response(
       IReq.valid,
-      false.B,
+      MemOp.Load,
       MemSize.Word,
-      IReq.region,
-      io.instrPort.addr,
-      0.U
+      getRegion(io.instrPort.addr),
+      io.instrPort.addr
     ),
     0.U.asTypeOf(new Response)
   )
 
   val DReq = Request(
     io.dataPort.enable,
-    !io.dataPort.writeEn,
-    getRegion(io.dataPort.addr)
+    io.dataPort.memOp,
+    getRegion(io.dataPort.addr),
+    io.dataPort.memSize,
+    io.dataPort.dataWrite
   )
   val DResp = RegNext(
     Response(
       DReq.valid,
-      io.dataPort.writeEn,
+      io.dataPort.memOp,
       io.dataPort.memSize,
-      DReq.region,
-      io.dataPort.addr,
-      io.dataPort.dataWrite
+      getRegion(io.dataPort.addr),
+      io.dataPort.addr
     ),
     0.U.asTypeOf(new Response)
   )
@@ -158,21 +168,50 @@ class CacheController() extends Module {
   }
 
   // always fetch data from  ddat
-  val dDatData = DDat.read(io.dataPort.addr(13, 2), DReq.valid)
+  val dDatData = DDat.read(
+    io.dataPort.addr(13, 2),
+    DReq.memOp === MemOp.Load || DReq.memOp === MemOp.LoadUnsigned
+  )
   when(DReq.valid) {
     // load request
     when(DReq.region === MemoryRegions.Peripherals) {
       // peripheral read through bus
-      when(DReq.load) {
-        // read from peripheral
-        io.bus.readRequest(io.dataPort.addr)
-      }.otherwise {
+      when(DReq.memOp === MemOp.Store) {
         // write to peripheral, this only supports word writes for now
         io.bus.writeRequest(
           io.dataPort.addr,
           io.dataPort.dataWrite
         )
+      }.elsewhen(
+        DReq.memOp === MemOp.Load || DReq.memOp === MemOp.LoadUnsigned
+      ) {
+        // read from peripheral
+        io.bus.readRequest(io.dataPort.addr)
       }
+    }.elsewhen(DReq.memOp === MemOp.Store) {
+      // store to data cache only
+      val offset = io.dataPort.addr(1, 0)
+      val writeData = MuxCase(
+        0.U,
+        Seq(
+          (DReq.size === MemSize.Byte) -> Fill(4, DReq.data(7, 0)),
+          (DReq.size === MemSize.HalfWord) -> Fill(2, DReq.data(15, 0)),
+          (DReq.size === MemSize.Word) -> DReq.data
+        )
+      )
+      val mask = MuxCase(
+        "b0000".U(4.W),
+        Seq(
+          (DReq.size === MemSize.Byte) -> (1.U(4.W) << offset),
+          (DReq.size === MemSize.HalfWord) -> (3.U(4.W) << (offset(1) << 1)),
+          (DReq.size === MemSize.Word) -> "b1111".U(4.W)
+        )
+      )
+      DDat.write(
+        io.dataPort.addr(12, 2),
+        writeData.asTypeOf(Vec(4, UInt(8.W))),
+        mask.asTypeOf(Vec(4, Bool()))
+      )
     }
   }
 
@@ -184,37 +223,33 @@ class CacheController() extends Module {
         (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData
       )
     )
-    when(!DResp.write) {
+    when(DResp.memOp === MemOp.Load || DResp.memOp === MemOp.LoadUnsigned) {
       // load
       val offset = DResp.respAddr(1, 0)
-      io.dataPort.dataRead := MuxCase(
-        0.U,
+
+// Narrow extracts
+      val byteVal = (data >> (offset << 3))(7, 0)
+      val halfVal = (data >> (offset(1) << 4))(15, 0)
+
+// Extend to 32 based on op
+      val extended = Wire(UInt(32.W))
+      extended := MuxCase(
+        data, // word load (already 32)
         Seq(
-          (DResp.size === MemSize.Byte) -> (data.asUInt >> (offset << 3))(7, 0),
-          (DResp.size === MemSize.HalfWord) -> (data.asUInt >> (offset(
-            1
-          ) << 4))(15, 0),
-          (DResp.size === MemSize.Word) -> data.asUInt
+          (DResp.size === MemSize.Byte) -> Mux(
+            DResp.memOp === MemOp.LoadUnsigned,
+            Cat(0.U(24.W), byteVal), // zero-extend
+            Cat(Fill(24, byteVal(7)), byteVal) // sign-extend
+          ),
+          (DResp.size === MemSize.HalfWord) -> Mux(
+            DResp.memOp === MemOp.LoadUnsigned,
+            Cat(0.U(16.W), halfVal), // zero-extend
+            Cat(Fill(16, halfVal(15)), halfVal) // sign-extend
+          )
         )
-      )
-    }.elsewhen(DResp.region === MemoryRegions.ProgramMemory && DResp.write) {
-      // store to data cache only
-      val offset = DResp.respAddr(1, 0)
-      val writeData = DResp.data
-      val mask = MuxCase(
-        "b0000".U(4.W),
-        Seq(
-          (DResp.size === MemSize.Byte) -> (1.U(4.W) << offset),
-          (DResp.size === MemSize.HalfWord) -> (3.U(4.W) << (offset(1) << 1)),
-          (DResp.size === MemSize.Word) -> "b1111".U(4.W)
-        )
-      )
-      DDat.write(
-        DResp.respAddr(12, 2),
-        writeData.asTypeOf(Vec(4, UInt(8.W))),
-        mask.asTypeOf(Vec(4, Bool()))
       )
 
+      io.dataPort.dataRead := extended
     }
   }
 

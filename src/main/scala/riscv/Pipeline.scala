@@ -102,7 +102,7 @@ class dataPort extends Bundle {
   val dataRead = Input(UInt(32.W))
   val dataWrite = Output(UInt(32.W))
   val memSize = Output(MemSize())
-  val writeOp = Output(MemOp())
+  val memOp = Output(MemOp())
   val enable = Output(Bool())
   val stall = Input(Bool())
 }
@@ -235,7 +235,7 @@ class Pipeline(
   }
 
   io.dataPort.addr := EX_MEM_reg.wb.aluResult
-  io.dataPort.writeOp := EX_MEM_reg.mem.memOp
+  io.dataPort.memOp := EX_MEM_reg.mem.memOp
   io.dataPort.enable := (EX_MEM_reg.mem.memOp =/= MemOp.Noop)
   io.dataPort.dataWrite := EX_MEM_reg.mem.rs2Data
   io.dataPort.memSize := EX_MEM_reg.mem.memSize

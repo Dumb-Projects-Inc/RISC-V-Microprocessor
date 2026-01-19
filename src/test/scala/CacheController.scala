@@ -5,6 +5,7 @@ import chisel3.simulator.scalatest.ChiselSim
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import riscv.MemSize
+import riscv.MemOp
 import lib.Bus
 
 class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
@@ -36,7 +37,7 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
 
       dut.io.dataPort.addr := 0.U
       dut.io.dataPort.enable := false.B
-      dut.io.dataPort.writeEn := false.B
+      dut.io.dataPort.memOp := MemOp.Load
       dut.io.dataPort.dataWrite := 0.U
       dut.io.dataPort.memSize := MemSize.Word
 
