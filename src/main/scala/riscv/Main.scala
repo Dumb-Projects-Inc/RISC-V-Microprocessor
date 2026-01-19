@@ -13,6 +13,8 @@ class RV32Debug extends Bundle {
   val instr = UInt(32.W)
   val dataAddr = UInt(32.W)
   val dataEn = Bool()
+  val writebackPc = UInt(32.W)
+  val regs = Vec(32, UInt(32.W))
 }
 
 /** Top-level module for RV32I processor, this maps the pipeline to memory, as
@@ -74,6 +76,8 @@ class RV32ITop(program: String = "", debug: Boolean = false)
     dbg.get.dataAddr := pipeline.io.dataPort.addr
     dbg.get.instr := pipeline.io.instrPort.instr
     dbg.get.dataEn := pipeline.io.dataPort.enable
+    dbg.get.writebackPc := pipeline.dbg.get.writebackPc
+    dbg.get.regs := pipeline.dbg.get.regs
   }
 
 }
