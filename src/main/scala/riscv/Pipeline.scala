@@ -226,7 +226,7 @@ class Pipeline(
     ((EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs1) || (EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs2)) &&
     (EX_MEM_reg.wb.rd =/= 0.U)
 
-  when(loadUseHazard) {
+  when(loadUseHazard && !flush) {
     stall := true.B
   }
 
