@@ -20,7 +20,7 @@ object WriteSource extends ChiselEnum {
 }
 
 object MemOp extends ChiselEnum {
-  val Noop, Store, Load = Value
+  val Noop, Store, Load, LoadUnsigned = Value
 }
 
 object MemSize extends ChiselEnum {
@@ -135,7 +135,7 @@ class Decoder extends Module {
   when(io.instr === Instruction.LBU) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.mem.memOp := MemOp.Load
+    io.mem.memOp := MemOp.LoadUnsigned
     io.mem.memSize := MemSize.Byte
     io.ex.aluOp := ALUOp.Add
     io.ex.aluInput1 := ALUInput1.Rs1
@@ -145,7 +145,7 @@ class Decoder extends Module {
   when(io.instr === Instruction.LHU) {
     io.wb.writeEnable := true.B
     io.wb.writeSource := WriteSource.Memory
-    io.mem.memOp := MemOp.Load
+    io.mem.memOp := MemOp.LoadUnsigned
     io.mem.memSize := MemSize.HalfWord
     io.ex.aluOp := ALUOp.Add
     io.ex.aluInput1 := ALUInput1.Rs1
