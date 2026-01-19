@@ -12,7 +12,7 @@ lazy val root = (project in file("."))
       "org.chipsalliance" %% "chisel" % chiselVersion,
       "org.scalatest" %% "scalatest" % "3.2.19" % "test",
       "com.github.push-and-pray" %% "riscvassembler" % "jp-SNAPSHOT",
-      "com.github.Dumb-Projects-Inc" %% "02155-RISC-V-ISA-SIM" % "b309058cc9"
+      "com.github.Dumb-Projects-Inc" %% "02155-RISC-V-ISA-SIM" % "40df390f7a"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",
