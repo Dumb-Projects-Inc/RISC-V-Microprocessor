@@ -31,7 +31,7 @@ class ALU extends Module {
       io.result := io.a ^ io.b
     }
     is(ALUOp.Srl) { // shift right logical
-      io.result := io.a.asSInt >> io.b(4, 0)
+      io.result := (io.a.asUInt >> io.b(4, 0)).asSInt
     }
     is(ALUOp.Sra) { // shift right arithmetic
       io.result := io.a.asSInt >> io.b(4, 0)

@@ -192,6 +192,14 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
+  when(io.instr === Instruction.SRAI) {
+    io.ex.aluInput1 := ALUInput1.Rs1
+    io.ex.aluInput2 := ALUInput2.Imm
+    io.ex.aluOp := ALUOp.Sra
+    io.wb.writeEnable := true.B
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
   when(io.instr === Instruction.XORI) {
     io.ex.aluInput1 := ALUInput1.Rs1
     io.ex.aluInput2 := ALUInput2.Imm

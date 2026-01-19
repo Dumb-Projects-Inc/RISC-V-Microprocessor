@@ -36,6 +36,17 @@ class ALUSpec extends AnyFunSpec with ChiselSim with Matchers {
         dut.io.result.expect((-15).S)
       }
     }
+    it("perform logical shift right (SRL) correctly on negative numbers") {
+      simulate(new ALU) { c =>
+        c.io.a.poke(-2.S)
+        c.io.b.poke(1.S) // Shift right by 1
+        c.io.op.poke(ALUOp.Srl)
+
+        c.clock.step()
+
+        c.io.result.expect(2147483647.S)
+      }
+    }
 
   }
 }
