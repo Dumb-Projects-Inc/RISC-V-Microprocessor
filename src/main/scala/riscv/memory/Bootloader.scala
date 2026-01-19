@@ -44,7 +44,7 @@ object Bootloader {
   addi x0, x0, 0 
 """
   private val helloWorld = """
-  addi x14, x0, 0x0
+  addi x14, x0, 0x10
   addi x11, x0, 72
   sb x11, 0(x14)
   addi x11, x0 , 101
@@ -73,32 +73,39 @@ object Bootloader {
   addi x11, x0, 10
   sb x11, 13(x14)
 
-  start:
-  addi x14, x0, 0
-  lui x10, 0x00001
-  lui x3, 14
-  write:     
-  lb x11, 0(x14)    
-  sw x11, 0(x10)
+start:
+  addi x14, x0, 0x10
+  lui  x10, 0x00001
+  addi x3, x0, 14
+
+write:
+  lbu  x11, 0(x14)
+  sw   x11, 0(x10)
   addi x14, x14, 1
   addi x3, x3, -1
-  bne x3, x0, write
-  
-  lui x3, 0x006D0
-  delay:
-    addi x3, x3, -1
-    bne x3, x0, delay
-  jal x0, start
+  bne  x3, x0, write
+
+  lui  x3, 0x006D0
+delay:
+  addi x3, x3, -1
+  bne  x3, x0, delay
+  jal  x0, start
+
   """
 
   def assemble(program: String): Seq[UInt] = {
-    RISCVAssembler
+    val prog = RISCVAssembler
       .fromString(program)
       .split("\\R")
       .map(_.trim)
       .filter(_.nonEmpty)
       .map(h => BigInt(h, 16).U(32.W))
       .toSeq
+    if (prog.isEmpty) {
+      println("Warning: failed to assemble a program")
+
+    }
+    prog
   }
 
   def BinToSeq(bin: Array[Byte]): Seq[UInt] = {
