@@ -108,6 +108,25 @@ object Bootloader {
     val bin = java.nio.file.Files.readAllBytes(
       java.nio.file.Paths.get(path)
     )
+    println("Loaded program file of size " + bin.length + " bytes")
+    println(
+      "First three words in hex: " + BinToSeq(bin)
+        .take(3)
+        .map(_.litValue.toString(16))
+        .mkString(", ")
+    )
+    print(
+      "Hello world hex first three : " + HELLO_WORLD_HEX
+        .take(3)
+        .map(_.litValue.toString(16))
+        .mkString(", ") + "\n"
+    )
+    print(
+      "last hellow world words: " + HELLO_WORLD_HEX
+        .takeRight(3)
+        .map(_.litValue.toString(16))
+        .mkString(", ") + "\n"
+    )
     BinToSeq(bin)
   }
 

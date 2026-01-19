@@ -4,6 +4,7 @@ package lib.peripherals
 
 import chisel3._
 import chisel3.util._
+import lib.Addresses
 
 object UUtils {
   def BitCount(baudRate: Int, freq: Int): Int = {
@@ -107,7 +108,7 @@ class Tx(freq: Int, baud: Int) extends Module {
   * @param BaudRate
   * @param baseAddr
   */
-class MMIOUart(Freq: Int, BaudRate: Int, baseAddr: BigInt = 0x10000000)
+class MMIOUart(Freq: Int, BaudRate: Int, baseAddr: BigInt = Addresses.UART_ADDR)
     extends Module {
   val io = IO(new Bundle {
     val dbus = lib.Bus.RespondPort()

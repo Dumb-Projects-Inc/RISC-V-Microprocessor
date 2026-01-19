@@ -42,6 +42,7 @@ object CacheSignals {
     val size = MemSize()
     val region = MemoryRegions()
     val respAddr = UInt(32.W)
+    val data = UInt(32.W)
   }
 
   object Response {
@@ -50,7 +51,8 @@ object CacheSignals {
         write: Bool,
         size: MemSize.Type,
         region: MemoryRegions.Type,
-        respAddr: UInt
+        respAddr: UInt,
+        data: UInt
     ) = {
       val bundle = Wire(new Response())
       bundle.valid := valid
@@ -58,6 +60,7 @@ object CacheSignals {
       bundle.size := size
       bundle.region := region
       bundle.respAddr := respAddr
+      bundle.data := data
       bundle
     }
   }
@@ -102,12 +105,19 @@ class CacheController() extends Module {
       )
     )
 
-  val IDat = SyncReadMem(1024, UInt(32.W)) // 4KB data cache
-  val DDat = SyncReadMem(1024, UInt(32.W)) // 4KB data cache
+  val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
+  val DDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
 
   val IReq = Request(io.instrPort.enable, true.B, getRegion(io.instrPort.addr))
   val IResp = RegNext(
-    Response(IReq.valid, false.B, MemSize.Word, IReq.region, io.instrPort.addr),
+    Response(
+      IReq.valid,
+      false.B,
+      MemSize.Word,
+      IReq.region,
+      io.instrPort.addr,
+      0.U
+    ),
     0.U.asTypeOf(new Response)
   )
 
@@ -146,16 +156,19 @@ class CacheController() extends Module {
       !DReq.load,
       io.dataPort.memSize,
       DReq.region,
-      io.dataPort.addr
+      io.dataPort.addr,
+      io.dataPort.dataWrite
     ),
     0.U.asTypeOf(new Response)
   )
 
   // always get data if in Program Memory region
-  val ramData = DDat.read(
-    io.dataPort.addr(11, 2),
-    DReq.region === MemoryRegions.ProgramMemory
-  )
+  val ramIndexReq = (io.dataPort.addr - 0x00010000.U)(11, 2)
+  val ramData =
+    DDat.read(
+      ramIndexReq,
+      DReq.valid && DReq.region === MemoryRegions.ProgramMemory
+    )
 
   val busReq = DReq.region === MemoryRegions.Peripherals && DReq.valid
   when(busReq) {
@@ -167,25 +180,27 @@ class CacheController() extends Module {
   }
 
   val lastRead = Reg(UInt(32.W))
-  when(DResp.valid && !DResp.write) {
-    val data = MuxCase(
-      0.U,
-      Seq(
-        (DResp.region === MemoryRegions.ROM) -> io.ROMIn,
-        (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData,
-        (DResp.region === MemoryRegions.ProgramMemory) -> ramData
+  when(DResp.valid) {
+    lastRead := ramData
+    when(!DResp.write) {
+      val data = MuxCase(
+        0.U,
+        Seq(
+          (DResp.region === MemoryRegions.ROM) -> io.ROMIn,
+          (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData,
+          (DResp.region === MemoryRegions.ProgramMemory) -> ramData
+        )
       )
-    )
-    lastRead := data
-    io.dataPort.dataRead := MuxCase(
-      0.U,
-      // This should really sign extend for byte and halfword loads
-      Seq(
-        (DResp.size === MemSize.Byte) -> 0.U(24.W) ## data(7, 0),
-        (DResp.size === MemSize.HalfWord) -> 0.U(16.W) ## data(15, 0),
-        (DResp.size === MemSize.Word) -> data
+      io.dataPort.dataRead := MuxCase(
+        0.U,
+        // This should really sign extend for byte and halfword loads
+        Seq(
+          (DResp.size === MemSize.Byte) -> 0.U(24.W) ## data(7, 0),
+          (DResp.size === MemSize.HalfWord) -> 0.U(16.W) ## data(15, 0),
+          (DResp.size === MemSize.Word) -> data
+        )
       )
-    )
+    }
   }.otherwise {
     io.dataPort.dataRead := 0.U
   }
@@ -201,32 +216,33 @@ class CacheController() extends Module {
         Seq(
           (DResp.size === MemSize.Byte) -> Mux1H(
             Seq(
-              (offset === 0.U) -> io.dataPort.dataWrite(7, 0) ## lastRead(
+              (offset === 0.U) -> DResp.data(7, 0) ## lastRead(
                 23,
                 0
               ),
-              (offset === 1.U) -> lastRead(31, 24) ## io.dataPort
-                .dataWrite(7, 0) ## lastRead(15, 0),
-              (offset === 2.U) -> lastRead(31, 16) ## io.dataPort
-                .dataWrite(7, 0) ## lastRead(7, 0),
-              (offset === 3.U) -> lastRead(31, 8) ## io.dataPort.dataWrite(7, 0)
+              (offset === 1.U) -> lastRead(31, 24) ## DResp
+                .data(7, 0) ## lastRead(15, 0),
+              (offset === 2.U) -> lastRead(31, 16) ## DResp
+                .data(7, 0) ## lastRead(7, 0),
+              (offset === 3.U) -> lastRead(31, 8) ## DResp.data(7, 0)
             )
           ),
           (DResp.size === MemSize.HalfWord) -> Mux1H(
             Seq(
-              (offset === 0.U) -> io.dataPort.dataWrite(15, 0) ## lastRead(
+              (offset === 0.U) -> DResp.data(15, 0) ## lastRead(
                 15,
                 0
               ),
-              (offset === 2.U) -> lastRead(31, 16) ## io.dataPort
-                .dataWrite(15, 0)
+              (offset === 2.U) -> lastRead(31, 16) ## DResp
+                .data(15, 0)
             )
           ),
-          (DResp.size === MemSize.Word) -> io.dataPort.dataWrite
+          (DResp.size === MemSize.Word) -> DResp.data
         )
       )
-
-      DDat.write(io.dataPort.addr(11, 2), data)
+      // calculate address by:
+      val ramIndex = (DResp.respAddr - 0x00010000.U)(11, 2)
+      DDat.write(ramIndex, data)
     }
   }
 

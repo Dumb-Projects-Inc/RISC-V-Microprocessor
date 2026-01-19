@@ -52,7 +52,7 @@ class RV32ITop(program: String = "", debug: Boolean = false)
   MMU.io.ROMIn := ROM.io.instruction
 
   val uart = Module(
-    new MMIOUart(Freq = 100000000, BaudRate = 9600, baseAddr = 0x00001000)
+    new MMIOUart(Freq = 100000000, BaudRate = 9600)
   )
   io.txd := uart.io.tx
   uart.io.rx := io.rxd
