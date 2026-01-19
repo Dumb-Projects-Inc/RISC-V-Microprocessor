@@ -18,6 +18,9 @@ class InstructionROM(program: Seq[UInt]) extends Module {
 
   val valid = RegNext(true.B, false.B)
   io.valid := valid
-  val Max_bit = log2Ceil(program.length)
-  io.instruction := RegNext(ROM(io.addr(Max_bit + 1, 2)), 0.U) // word aligned
+  val index = io.addr(31, 2)
+  io.instruction := RegNext(
+    Mux(index < program.length.U, ROM(index), 0x13.U),
+    0x13.U
+  ) // word aligned
 }
