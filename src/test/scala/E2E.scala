@@ -2,6 +2,7 @@ package riscv
 
 import chisel3._
 import chisel3.simulator.scalatest.ChiselSim
+import riscv.memory.MemoryMap
 import org.scalatest.funspec.AnyFunSpec
 import java.nio.file.Files
 import java.io.File
@@ -43,7 +44,7 @@ class E2ESpec extends AnyFunSpec with ChiselSim {
           fail(s"Golden model timed out on ${file.getName}")
 
         val expectedRegs = sim.getRegistersArray()
-        val expectedExitPC = sim.getPc()
+        val expectedExitPC = sim.getPc() + MemoryMap.romStart
 
         simulate(new RV32ITop(program = file.getAbsolutePath, debug = true)) {
           dut =>
