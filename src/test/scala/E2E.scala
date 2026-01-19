@@ -59,7 +59,6 @@ class E2ESpec extends AnyFunSpec with ChiselSim {
 
               if (dut.dbg.get.writebackPc.peek().litValue == expectedExitPC) {
                 finished = true
-                dut.clock.step()
               }
             }
 
