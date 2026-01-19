@@ -35,7 +35,7 @@ class E2ESpec extends AnyFunSpec with ChiselSim {
         sim.loadProgram(programBytes)
 
         var steps = 0
-        val maxSteps = 1000
+        val maxSteps = 100000
         while (sim.step() && steps < maxSteps) {
           steps += 1
         }

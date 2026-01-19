@@ -208,7 +208,7 @@ class CacheController() extends Module {
         )
       )
       DDat.write(
-        io.dataPort.addr(12, 2),
+        io.dataPort.addr(13, 2),
         writeData.asTypeOf(Vec(4, UInt(8.W))),
         mask.asTypeOf(Vec(4, Bool()))
       )
