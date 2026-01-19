@@ -66,10 +66,8 @@ void itoa(unsigned int value, char *str)
 // ###############################
 typedef struct
 {
-    volatile unsigned char DATA;         // Offset 0x00: Data Register
-    volatile unsigned char RESERVED[3];  // Padding to align to 4 bytes
-    volatile unsigned char STATUS;       // Offset 0x04: Status Register
-    volatile unsigned char RESERVED2[3]; // Padding to align to 4 bytes
+    volatile unsigned int DATA;   // Offset 0x00: Data Register
+    volatile unsigned int STATUS; // Offset 0x04: Status Register
 
 } UART_t;
 
@@ -85,14 +83,14 @@ void uart_write_char(volatile UART_t *uart, unsigned char c)
     // wait until TX is ready
     while ((uart->STATUS & 0x1) == 0)
         ;
-    uart->DATA = (unsigned char)c;
+    uart->DATA = (unsigned int)c;
 }
 
 void uart_write_string(volatile UART_t *uart, const char *str)
 {
     while (*str)
     {
-        uart_write_char(uart, (unsigned char)*str++);
+        uart_write_char(uart, (unsigned int)*str++);
     }
 }
 

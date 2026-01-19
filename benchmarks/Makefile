@@ -23,7 +23,7 @@ OBJCOPY = $(CROSS)objcopy
 
 # Compiler flags for RV32I bare metal
 CFLAGS = -mabi=ilp32 -O0 
-CFLAGS += -ffreestanding -nostdlib -e entry -T linker.ld
+CFLAGS += -ffreestanding -nostdlib -mcmodel=medany -mno-relax -fPIE -nostartfiles -e entry -T link.ld
 
 # Pass configuration to C code
 DEFINES = -DUART_ADDR=$(UART_ADDR) -DNUM_PRIMES=$(NUM_PRIMES)
