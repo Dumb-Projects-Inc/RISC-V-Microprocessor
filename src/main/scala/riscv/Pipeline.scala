@@ -128,6 +128,11 @@ class Pipeline(
   val flush = WireDefault(false.B)
   val stall = WireDefault(false.B)
 
+  if (debug) {
+    dontTouch(stall)
+    dontTouch(flush)
+  }
+
   val ID_EX_reg = RegInit(ResetPipeline.ID_EX())
 
   val EX_MEM_reg = RegInit(ResetPipeline.EX_MEM())
@@ -137,9 +142,10 @@ class Pipeline(
   // Stage: Fetch
   val pc = RegInit(pcInit.U(32.W))
   val nextPc = WireDefault(pc + 4.U)
+  pc := nextPc
 
-  when(!stall) {
-    pc := nextPc
+  when(stall) {
+    nextPc := pc
   }
 
   val first = RegNext(false.B, true.B)
@@ -215,6 +221,15 @@ class Pipeline(
     Mux(hazardExWbRs2, opResult, registers.io.reg2Data)
   )
 
+  if (debug) {
+    dontTouch(hazardExMemRs1)
+    dontTouch(hazardExMemRs2)
+    dontTouch(hazardExWbRs1)
+    dontTouch(hazardExWbRs2)
+    dontTouch(rs1)
+    dontTouch(rs2)
+  }
+
   val alu = Module(new ALU())
   alu.io.op := ID_EX_reg.ex.aluOp
   alu.io.a := Mux(
@@ -244,6 +259,10 @@ class Pipeline(
     isLoad &&
       ((EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs1) || (EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs2)) &&
       (EX_MEM_reg.wb.rd =/= 0.U)
+
+  if (debug) {
+    dontTouch(loadUseHazard)
+  }
 
   when(loadUseHazard) {
     stall := true.B
