@@ -7,4 +7,3 @@ build/
 .bsp/
 vivado_project/
 generated/
-vivado/project*
