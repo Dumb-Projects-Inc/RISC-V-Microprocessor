@@ -256,6 +256,16 @@ class Pipeline(
     EX_MEM_reg := ResetPipeline.EX_MEM()
   }
 
+  // We dont support unaligned mem access
+  when(EX_MEM_reg.mem.memOp =/= MemOp.Noop) {
+    when(EX_MEM_reg.mem.memSize === MemSize.Word) {
+      assert(EX_MEM_reg.wb.aluResult(1, 0) === 0.U)
+    }
+    when(EX_MEM_reg.mem.memSize === MemSize.HalfWord) {
+      assert(EX_MEM_reg.wb.aluResult(0) === 0.U)
+    }
+  }
+
   io.dataPort.addr := EX_MEM_reg.wb.aluResult
   io.dataPort.memOp := EX_MEM_reg.mem.memOp
   io.dataPort.enable := (EX_MEM_reg.mem.memOp =/= MemOp.Noop)
