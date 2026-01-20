@@ -84,9 +84,9 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
     }
 
     simulate(new TestWrapper) { c =>
-      c.io.addr.poke("hfff10000".U)
+      c.io.addr.poke("h00000000".U)
       c.clock.step()
-      c.io.addr.poke("hfff10004".U)
+      c.io.addr.poke("h00000004".U)
       c.io.instr.expect("h00000001".U)
       c.clock.step()
       c.io.instr.expect("h00000002".U)
@@ -111,7 +111,7 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
       driveIdle(c)
       c.clock.step()
 
-      val addr = 0x00000000L
+      val addr = 0x00010000L
       val w = BigInt("DEADBEEF", 16)
 
       // Store (cycle N)
@@ -141,7 +141,7 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
 
       driveIdle(c); c.clock.step()
 
-      val base = 0x00000010L
+      val base = 0x00010010L
 
       // Initialize the word to 0
       driveStore(c, base, MemSize.Word, 0x00000000L)
@@ -180,7 +180,7 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
 
       driveIdle(c); c.clock.step()
 
-      val base = 0x00000020L
+      val base = 0x00010020L
 
       // Initialize word
       driveStore(c, base, MemSize.Word, 0x00000000L)
@@ -218,7 +218,7 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
 
       driveIdle(c); c.clock.step()
 
-      val base = 0x00000040L
+      val base = 0x00010040L
 
       // Start with a known pattern
       driveStore(c, base, MemSize.Word, 0xaabbccddL)
