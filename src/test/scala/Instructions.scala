@@ -46,7 +46,7 @@ class TestTop(instr: String) extends Module {
   )
 
   when(
-    (pipeline.io.dataPort.memOp === MemOp.Load || pipeline.io.dataPort.memOp === MemOp.LoadUnsigned) && pipeline.io.dataPort.enable
+    (pipeline.io.dataPort.memOp === MemOp.Store) && pipeline.io.dataPort.enable
   ) {
     dmem.write(dmemAddr, pipeline.io.dataPort.dataWrite)
   }
@@ -411,6 +411,35 @@ class Instructions extends AnyFunSpec with ChiselSim {
         dut.io.dbg(4).expect(60)
       }
     }
+    it("should not deadlock on load-use stall (pipeline must resume)", Hazard) {
+      val input =
+        """
+        addi x1, x0, 100
+        addi x2, x0, 55
+        sw   x2, 0(x1)
+        lw   x3, 0(x1)
+        addi x4, x3, 5      
+        addi x5, x0, 123
+        addi x6, x0, 7      
+
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+
+      simulate(new TestTop(input)) { dut =>
+        // Step "long enough" that even with a load-use stall, x5/x6 should have committed.
+        // If your stall logic deadlocks (e.g., squashing EX/MEM load), x5/x6 will remain 0.
+        dut.clock.step(50)
+
+        dut.io.dbg(3).expect(55) // x3 = loaded 55
+        dut.io.dbg(4).expect(60) // x4 = 55 + 5
+        dut.io.dbg(5).expect(123) // proves pipeline resumed past the stall
+        dut.io.dbg(6).expect(7) // additional progress check
+      }
+    }
+
     it("should forward registers to memory address", Hazard) {
       val input =
         """

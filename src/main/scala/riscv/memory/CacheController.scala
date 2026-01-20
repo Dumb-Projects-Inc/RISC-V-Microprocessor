@@ -5,6 +5,7 @@ import chisel3.util._
 import lib.Bus
 import riscv.MemSize
 import riscv.MemOp
+
 // Static Memory mapping
 // Following the https://riscv.org/blog/design-approaches-and-architectures-of-risc-v-socs/ embedded memory map
 // 0x0001_0000 - 0x0070_0000  : Program Memory (RAM)
@@ -113,7 +114,8 @@ class CacheController() extends Module {
   // val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
   val DDat = SyncReadMem(
     4096,
-    Vec(4, UInt(8.W))
+    Vec(4, UInt(8.W)),
+    SyncReadMem.WriteFirst
   ) // 4KB data cache // vec to enable masks
 
   val IReq =
@@ -208,7 +210,7 @@ class CacheController() extends Module {
         )
       )
       DDat.write(
-        io.dataPort.addr(12, 2),
+        io.dataPort.addr(13, 2),
         writeData.asTypeOf(Vec(4, UInt(8.W))),
         mask.asTypeOf(Vec(4, Bool()))
       )

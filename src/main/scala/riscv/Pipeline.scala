@@ -238,9 +238,12 @@ class Pipeline(
   EX_MEM_reg.mem.rs2Data := rs2
   EX_MEM_reg.mem.branch := branch.io.takeBranch
 
-  val loadUseHazard = (EX_MEM_reg.mem.memOp === MemOp.Load) &&
-    ((EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs1) || (EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs2)) &&
-    (EX_MEM_reg.wb.rd =/= 0.U)
+  val isLoad =
+    (EX_MEM_reg.mem.memOp === MemOp.Load || EX_MEM_reg.mem.memOp === MemOp.LoadUnsigned)
+  val loadUseHazard =
+    isLoad &&
+      ((EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs1) || (EX_MEM_reg.wb.rd === ID_EX_reg.ex.rs2)) &&
+      (EX_MEM_reg.wb.rd =/= 0.U)
 
   when(loadUseHazard) {
     stall := true.B
