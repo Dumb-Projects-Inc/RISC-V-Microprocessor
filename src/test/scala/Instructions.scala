@@ -426,12 +426,13 @@ class Instructions extends AnyFunSpec with ChiselSim {
         addi x0, x0, 0
         addi x0, x0, 0
         addi x0, x0, 0
+        addi x0, x0, 0
         """
 
       simulate(new TestTop(input)) { dut =>
         // Step "long enough" that even with a load-use stall, x5/x6 should have committed.
         // If your stall logic deadlocks (e.g., squashing EX/MEM load), x5/x6 will remain 0.
-        dut.clock.step(50)
+        dut.clock.step(12)
 
         dut.io.dbg(3).expect(55) // x3 = loaded 55
         dut.io.dbg(4).expect(60) // x4 = 55 + 5
