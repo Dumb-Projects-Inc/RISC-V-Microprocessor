@@ -43,8 +43,7 @@ class E2ESpec extends AnyFunSpec with ChiselSim {
           fail(s"Golden model timed out on ${file.getName}")
 
         val expectedRegs = sim.getRegistersArray()
-        val expectedExitPC = sim.getPc()
-        println(s"Expected Exit PC: 0x${expectedExitPC.toHexString}")
+        val expectedExitPC = sim.getPc() - 4
 
         simulate(new RV32ITop(program = file.getAbsolutePath, debug = true)) {
           dut =>
