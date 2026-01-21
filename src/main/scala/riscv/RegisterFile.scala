@@ -20,34 +20,30 @@ class RegisterFile(debug: Boolean = false)
     val reg2Data = Output(UInt(32.W))
   })
 
-  // Yes this wastes 32 bits for x0, but simplifies logic
-  val regFile = SyncReadMem(32, UInt(32.W))
-
-  val r1Data = regFile.read(io.readReg1, true.B)
-  val r2Data = regFile.read(io.readReg2, true.B)
-
-  val isZero1 = RegNext(io.readReg1, 1.U) === 0.U
-  val isZero2 = RegNext(io.readReg2, 1.U) === 0.U
-
-  io.reg1Data := Mux(isZero1, 0.U, r1Data)
-  io.reg2Data := Mux(isZero2, 0.U, r2Data)
-
-  when(io.wrEn && (io.writeReg =/= 0.U)) {
-    regFile.write(io.writeReg, io.writeData)
-  }
-
   // ##################################################
   // Debugging interface, should never be synthesized to board
   // ##################################################
   val dbg = if (debug) Some(IO(Output(Vec(32, UInt(32.W))))) else None
 
-  if (debug) {
+  // Back to Asynchronous Read (RegInit) architecture which passed all tests.
+  // This uses Flip-Flops, allowing combinational reads.
+  val regs = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
 
-    val debugRegs = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
-    when(io.wrEn && (io.writeReg =/= 0.U)) {
-      debugRegs(io.writeReg) := io.writeData
-    }
-    dbg.get := debugRegs
+  if (debug) {
+    dbg.get := regs
+  }
+
+  val r1Data = regs(io.readReg1)
+  val r2Data = regs(io.readReg2)
+
+  val isZero1 = io.readReg1 === 0.U
+  val isZero2 = io.readReg2 === 0.U
+
+  io.reg1Data := Mux(isZero1, 0.U, r1Data)
+  io.reg2Data := Mux(isZero2, 0.U, r2Data)
+
+  when(io.wrEn && (io.writeReg =/= 0.U)) {
+    regs(io.writeReg) := io.writeData
   }
 
 }
