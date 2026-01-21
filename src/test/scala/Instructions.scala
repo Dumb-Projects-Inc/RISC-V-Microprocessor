@@ -527,6 +527,92 @@ class Instructions extends AnyFunSpec with ChiselSim {
       dut.io.dbg(2).expect(10.U)
     }
   }
+  it(
+    "should not clobber source pointer or lose load during load-use stall in lbu->sw loop",
+    Hazard
+  ) {
+    // This program:
+    // 1) Writes 14 bytes at 0x00010000..0x0001000D
+    // 2) Copies them to RAM at 0x00002000..0x0000200D using lbu->sb (forces load-use on store-data)
+    // 3) Clears the original source region to 0 (checks the loop really finished and x14 increments correctly)
+    // 4) Reads back destination bytes and sums them into x5
+    //    Expected sum = sum("Hello, World!\n") = 1129
+    val input =
+      """
+      addi  x14, x0, 0x100           # x14 = 0x00010000 (src base)
+
+      # Write "Hello, World!\n" to src
+      addi x11, x0, 72             # 'H'
+      sb   x11, 0(x14)
+      addi x11, x0, 101            # 'e'
+      sb   x11, 1(x14)
+      addi x11, x0, 108            # 'l'
+      sb   x11, 2(x14)
+      sb   x11, 3(x14)
+      addi x11, x0, 111            # 'o'
+      sb   x11, 4(x14)
+      addi x11, x0, 44             # ','
+      sb   x11, 5(x14)
+      addi x11, x0, 32             # ' '
+      sb   x11, 6(x14)
+      addi x11, x0, 87             # 'W'
+      sb   x11, 7(x14)
+      addi x11, x0, 111            # 'o'
+      sb   x11, 8(x14)
+      addi x11, x0, 114            # 'r'
+      sb   x11, 9(x14)
+      addi x11, x0, 108            # 'l'
+      sb   x11, 10(x14)
+      addi x11, x0, 100            # 'd'
+      sb   x11, 11(x14)
+      addi x11, x0, 33             # '!'
+      sb   x11, 12(x14)
+      addi x11, x0, 10             # '\n'
+      sb   x11, 13(x14)
+
+      # Reset pointers and count
+      addi  x14, x0, 0x100           # x14 = 0x000100 (src)
+      addi  x10, x0, 0x200            # x10 = 0x0000200 (dst in RAM)
+      addi x3,  x0, 14             # count
+
+    copy:
+      lbu  x11, 0(x14)             # load byte from src
+      sb   x11, 0(x10)             # store byte to dst (immediate load-use on store-data)
+      addi x14, x14, 1
+      addi x10, x10, 1
+      addi x3,  x3,  -1
+      bne  x3,  x0,  copy
+
+      # Clear src region to 0 to ensure copy really completed and doesn't depend on later reads
+      addi  x14, x0, 0x100           # x14 = 0x000100
+      addi x3,  x0, 14
+
+    clear:
+      sb   x0, 0(x14)
+      addi x14, x14, 1
+      addi x3,  x3,  -1
+      bne  x3,  x0,  clear
+
+      # Verify: sum all 14 bytes from dst into x5
+      addi  x10, x0, 0x200            # x10 = 0x0000200  (dst in RAM)
+      addi x3,  x0, 14
+      addi x5,  x0, 0
+
+    sum:
+      lbu  x11, 0(x10)
+      add  x5,  x5,  x11
+      addi x10, x10, 1
+      addi x3,  x3,  -1
+      bne  x3,  x0,  sum
+
+      ecall
+      """
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(200)
+      dut.io.dbg(5).expect(1129.U) // sum("Hello, World!\n") = 1129
+    }
+  }
+
   it("should handle Branch condition hazard (Forwarding to Branch)", Hazard) {
     val input =
       """
