@@ -259,10 +259,24 @@ class Pipeline(
   // We dont support unaligned mem access
   when(EX_MEM_reg.mem.memOp =/= MemOp.Noop) {
     when(EX_MEM_reg.mem.memSize === MemSize.Word) {
-      assert(EX_MEM_reg.wb.aluResult(1, 0) === 0.U)
+      assert(
+        EX_MEM_reg.wb.aluResult(1, 0) === 0.U,
+        "Unaligned WORD access | pc=0x%x addr=0x%x memOp=%d memSize=%d\n",
+        EX_MEM_reg.wb.pc,
+        EX_MEM_reg.wb.aluResult,
+        EX_MEM_reg.mem.memOp.asUInt,
+        EX_MEM_reg.mem.memSize.asUInt
+      )
     }
     when(EX_MEM_reg.mem.memSize === MemSize.HalfWord) {
-      assert(EX_MEM_reg.wb.aluResult(0) === 0.U)
+      assert(
+        EX_MEM_reg.wb.aluResult(0) === 0.U,
+        "Unaligned HALFWORD access | pc=0x%x addr=0x%x memOp=%d memSize=%d\n",
+        EX_MEM_reg.wb.pc,
+        EX_MEM_reg.wb.aluResult,
+        EX_MEM_reg.mem.memOp.asUInt,
+        EX_MEM_reg.mem.memSize.asUInt
+      )
     }
   }
 
