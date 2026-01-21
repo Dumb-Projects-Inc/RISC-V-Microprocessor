@@ -12,6 +12,9 @@ class InstructionROM(program: Seq[UInt]) extends Module {
     val addr = Input(UInt(32.W))
     val instruction = Output(UInt(32.W))
     val valid = Output(Bool())
+
+    val dataAddr = Input(UInt(32.W))
+    val data = Output(UInt(32.W))
   })
 
   val ROM = VecInit(program) // Simple ROM implementation for BIOS
@@ -20,4 +23,5 @@ class InstructionROM(program: Seq[UInt]) extends Module {
   io.valid := valid
   val Max_bit = log2Ceil(program.length)
   io.instruction := RegNext(ROM(io.addr(Max_bit + 1, 2)), 0.U) // word aligned
+  io.data := RegNext(ROM(io.dataAddr(Max_bit + 1, 2)), 0.U)
 }

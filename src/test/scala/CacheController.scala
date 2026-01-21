@@ -66,6 +66,8 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
 
       rom.io.addr := io.addr
       dut.io.ROMIn := rom.io.instruction
+      rom.io.dataAddr := dut.io.dataPort.addr
+      dut.io.ROMDataIn := rom.io.data
       dut.io.bus.rdData := "hDEADBEEF".U
       dut.io.bus.rdValid := false.B
       dut.io.bus.stall := false.B

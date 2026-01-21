@@ -90,6 +90,7 @@ class CacheController() extends Module {
   val io = IO(new Bundle {
     val instrPort = Flipped(new riscv.instrPort())
     val ROMIn = Input(UInt(32.W))
+    val ROMDataIn = Input(UInt(32.W))
     val dataPort = Flipped(new riscv.dataPort())
     val bus = Bus.RequestPort()
     // val flush = Input(Bool()) // fence.i instruction
@@ -221,6 +222,7 @@ class CacheController() extends Module {
       0.U,
       Seq(
         (DResp.region === MemoryRegions.ProgramMemory) -> dDatData.asUInt,
+        (DResp.region === MemoryRegions.ROM) -> io.ROMDataIn,
         (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData
       )
     )

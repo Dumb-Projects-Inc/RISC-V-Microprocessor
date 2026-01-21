@@ -55,6 +55,8 @@ class RV32ITop(program: String = "", debug: Boolean = false)
 
   ROM.io.addr := pipeline.io.instrPort.addr(12, 0)
   MMU.io.ROMIn := ROM.io.instruction
+  ROM.io.dataAddr := pipeline.io.dataPort.addr(12, 0)
+  MMU.io.ROMDataIn := ROM.io.data
 
   val uart = Module(
     new MMIOUart(Freq = 100000000, BaudRate = 9600)
