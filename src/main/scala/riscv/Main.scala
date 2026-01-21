@@ -5,8 +5,9 @@ import chisel3.stage.ChiselGeneratorAnnotation
 import circt.stage.{ChiselStage, FirtoolOption}
 import riscv.memory.CacheController
 import riscv.memory.Bootloader
-import lib.peripherals.MMIOUart
+import lib.peripherals.{MMIOUart, MemoryMappedLeds, MemoryMappedSwitches}
 import riscv.memory.MemoryMap
+import lib.Addresses
 
 class RV32Debug extends Bundle {
   val instrAddr = UInt(32.W)
@@ -26,8 +27,7 @@ class RV32ITop(program: String = "", debug: Boolean = false)
     extends Module
     with RequireSyncReset {
   val io = IO(new Bundle {
-    // val sw = Input(Bits(16.W)) // 16 switches that should be readable
-    val btn = Input(Bits(4.W)) // 4 buttons (1 for reset)
+    val sw = Input(Bits(16.W)) // 16 switches that should be readable
     val LED = Output(Bits(16.W)) // 16 LEDs that should be writable
 
     val txd = Output(Bool()) // for uart
@@ -42,10 +42,11 @@ class RV32ITop(program: String = "", debug: Boolean = false)
     new CacheController(rom = prog_bytes)
   )
 
-  val deb_btn = RegNext(RegNext(io.btn), 0.U) // simple debouncer
-
   val pipeline = Module(
-    new Pipeline(debug = debug, pcInit = MemoryMap.romStart)
+    new Pipeline(
+      debug = debug,
+      pcInit = MemoryMap.romStart
+    )
   )
 
   pipeline.io.instrPort <> MMU.io.instrPort
@@ -59,11 +60,15 @@ class RV32ITop(program: String = "", debug: Boolean = false)
 
   MMU.io.bus <> uart.io.dbus
 
-  val led = RegInit(255.U(16.W))
-  when(pipeline.io.dataPort.enable) {
-    led := pipeline.io.dataPort.addr(15, 0)
-  }
-  io.LED := led
+  val led = Module(new MemoryMappedLeds(16, baseAddr = Addresses.LED_ADDR))
+  led.io.bus <> MMU.io.bus
+  io.LED := led.io.pins
+
+  val switches = Module(
+    new MemoryMappedSwitches(16, baseAddr = Addresses.SWITCH_ADDR)
+  )
+  switches.io.pins := io.sw
+  switches.io.bus <> MMU.io.bus
 
   // ###############################################
   // Debugging interface
