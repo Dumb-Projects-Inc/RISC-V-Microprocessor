@@ -113,7 +113,7 @@ class CacheController(rom: Seq[UInt]) extends Module {
 
   // val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
   val DDat = SyncReadMem(
-    32000,
+    49153,
     Vec(4, UInt(8.W)),
     SyncReadMem.WriteFirst
   ) // 128kib data cache // vec to enable masks
@@ -156,7 +156,7 @@ class CacheController(rom: Seq[UInt]) extends Module {
   )
 
   // always fetch instructions from both idat and rom
-  val iDatIdx = (io.instrPort.addr - MemoryMap.dataStart.U)(16, 2)
+  val iDatIdx = (io.instrPort.addr)(17, 2)
   val iDatData =
     DDat.read(iDatIdx, IReq.valid)
   val iRomData = RegNext(ROM(io.instrPort.addr(ROM_MAX + 1, 2)), 0.U)
@@ -172,7 +172,7 @@ class CacheController(rom: Seq[UInt]) extends Module {
   }
 
   // always fetch data from  ddat
-  val dDatIdx = (io.dataPort.addr - MemoryMap.dataStart.U)(16, 2)
+  val dDatIdx = (io.dataPort.addr)(17, 2)
   val dDatData = DDat.read(
     dDatIdx,
     DReq.memOp === MemOp.Load || DReq.memOp === MemOp.LoadUnsigned
