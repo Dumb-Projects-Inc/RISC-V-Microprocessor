@@ -5,8 +5,8 @@ OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
 
 # Flags
-CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -O0 -fno-stack-protector -T linker.ld
-ASMFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -T linker.ld
+CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -O0 -fno-stack-protector -fno-pic -T linker.ld
+ASMFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -fno-pic -T linker.ld
 
 # Directories
 ASM_DIR = asm
