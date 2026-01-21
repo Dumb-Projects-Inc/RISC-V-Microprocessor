@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 
 import riscv.memory.MemoryMap
+import riscv.branchPred._
 
 object ControlSignals {
   class EX extends Bundle {
@@ -70,6 +71,9 @@ object Pipeline {
     val ex = new ControlSignals.EX
     val mem = new ControlSignals.MEM
     val wb = new ControlSignals.WB
+
+    val predTaken = Bool()
+    val predTarget = UInt(32.W)
   }
   class EX_MEM extends Bundle {
     val mem = new ControlSignals.MEM
@@ -86,6 +90,8 @@ object ResetPipeline {
     bundle.ex := ResetControl.EX()
     bundle.mem := ResetControl.MEM()
     bundle.wb := ResetControl.WB()
+    bundle.predTaken := false.B
+    bundle.predTarget := 0.U
     bundle
   }
   def EX_MEM(): Pipeline.EX_MEM = {
@@ -128,7 +134,8 @@ class Debug extends Bundle {
 class Pipeline(
     debug: Boolean = true,
     debugPrint: Boolean = false,
-    pcInit: Long = 0
+    pcInit: Long = 0,
+    useBranchPred: Boolean = true
 ) extends Module {
   val io = IO(new Bundle {
     val instrPort = new instrPort()
@@ -151,10 +158,32 @@ class Pipeline(
 
   val MEM_WB_reg = RegInit(ResetPipeline.MEM_WB())
 
-  // Stage: Fetch
-  val pc = RegInit(pcInit.U(32.W))
-  val nextPc = WireDefault(pc + 4.U)
-  pc := nextPc
+  val btb = Module(new BTB(entries = 128))
+  val bht = Module(new BHT(entries = 256))
+  val bhtPredR = RegNext(bht.io.pred, false.B)
+
+  val pc = RegInit(
+    pcInit.U(32.W)
+  )
+
+  val redirectValid = WireDefault(false.B)
+  val redirectPc = WireDefault(0.U(32.W))
+  val flushFront = WireDefault(false.B)
+
+  val isBranchLike = WireDefault(false.B)
+
+  val predTakenNow = WireDefault(false.B)
+  val predTargetNow = WireDefault(0.U(32.W))
+
+  when(useBranchPred.B) {
+    predTakenNow := btb.io.hit && bhtPredR
+    predTargetNow := btb.io.targetPc
+  }
+
+  val fallThroughNow = pc + 4.U
+  val predictedNextPcNow = Mux(predTakenNow, predTargetNow, fallThroughNow)
+
+  val nextPc = WireDefault(predictedNextPcNow)
 
   when(stall) {
     nextPc := pc
@@ -163,11 +192,23 @@ class Pipeline(
   val first = RegNext(false.B, true.B)
   when(first) {
     nextPc := pc
-    flush := true.B
+    flushFront := true.B
+  }
+
+  when(redirectValid) {
+    nextPc := redirectPc
+    flushFront := true.B
   }
 
   io.instrPort.addr := nextPc
   io.instrPort.enable := true.B
+
+  btb.io.currentPc := nextPc
+  bht.io.currentPc := nextPc
+
+  pc := nextPc
+
+  flush := flushFront
 
   // Stage: Decode, prepare register fetch
   val registers = Module(new RegisterFile(debug))
@@ -180,18 +221,30 @@ class Pipeline(
   }
 
   val decoder = Module(new Decoder)
-  decoder.io.instr := Mux(flush, Instruction.NOP, io.instrPort.instr)
+  decoder.io.instr := Mux(flushFront, Instruction.NOP, io.instrPort.instr)
 
   registers.io.readReg1 := Mux(stall, ID_EX_reg.ex.rs1, decoder.io.ex.rs1)
   registers.io.readReg2 := Mux(stall, ID_EX_reg.ex.rs2, decoder.io.ex.rs2)
 
-  ID_EX_reg := decoder.io
-  ID_EX_reg.wb.pc := pc
-  when(stall) {
-    ID_EX_reg := ID_EX_reg
+  val predTakenD = WireDefault(false.B)
+  val predTargetD = WireDefault(0.U(32.W))
+
+  when(useBranchPred.B) {
+    predTakenD := btb.io.hit && bhtPredR
+    predTargetD := btb.io.targetPc
   }
-  when(flush) {
+
+  when(flushFront) {
     ID_EX_reg := ResetPipeline.ID_EX()
+  }.elsewhen(stall) {
+    // hold
+  }.otherwise {
+    ID_EX_reg.ex := decoder.io.ex
+    ID_EX_reg.mem := decoder.io.mem
+    ID_EX_reg.wb := decoder.io.wb
+    ID_EX_reg.wb.pc := pc
+    ID_EX_reg.predTaken := predTakenD
+    ID_EX_reg.predTarget := predTargetD
   }
 
   // STAGE: Execute, decide branch
@@ -260,10 +313,44 @@ class Pipeline(
   val execResult =
     Mux(ID_EX_reg.ex.csrValid, csr.io.csr.readData, alu.io.result.asUInt)
 
-  EX_MEM_reg := ID_EX_reg
+  isBranchLike := ID_EX_reg.ex.branchType =/= BranchType.NO
+  val actualTaken = isBranchLike && branch.io.takeBranch
+  val actualTarget =
+    alu.io.result.asUInt
+
+  val predictedTaken = ID_EX_reg.predTaken
+  val predictedTarget = ID_EX_reg.predTarget
+  val fallThrough = ID_EX_reg.wb.pc + 4.U
+
+  val targetMismatch = actualTarget =/= predictedTarget
+  val mispredict =
+    (actualTaken =/= predictedTaken) || (actualTaken && predictedTaken && targetMismatch)
+
+  when(isBranchLike && (!useBranchPred.B || mispredict)) {
+    redirectValid := true.B
+    redirectPc := Mux(actualTaken, actualTarget, fallThrough)
+    flushFront := true.B
+  }
+
+  when(csr.io.redirect.valid) {
+    redirectValid := true.B
+    redirectPc := csr.io.redirect.pc
+    flushFront := true.B
+  }
+
+  btb.io.update.valid := useBranchPred.B && isBranchLike && actualTaken
+  btb.io.update.pc := ID_EX_reg.wb.pc
+  btb.io.update.targetPc := actualTarget
+
+  bht.io.update := useBranchPred.B && isBranchLike
+  bht.io.updatePc := ID_EX_reg.wb.pc
+  bht.io.taken := actualTaken
+
+  EX_MEM_reg.mem := ID_EX_reg.mem
+  EX_MEM_reg.wb := ID_EX_reg.wb
   EX_MEM_reg.wb.aluResult := execResult
   EX_MEM_reg.mem.rs2Data := rs2
-  EX_MEM_reg.mem.branch := branch.io.takeBranch
+  EX_MEM_reg.mem.branch := actualTaken
 
   val isLoad =
     (EX_MEM_reg.mem.memOp === MemOp.Load || EX_MEM_reg.mem.memOp === MemOp.LoadUnsigned)
@@ -280,7 +367,7 @@ class Pipeline(
     stall := true.B
   }
 
-  when(flush || stall) {
+  when(stall) {
     EX_MEM_reg := ResetPipeline.EX_MEM()
   }
 
@@ -313,16 +400,6 @@ class Pipeline(
   io.dataPort.enable := (EX_MEM_reg.mem.memOp =/= MemOp.Noop)
   io.dataPort.dataWrite := EX_MEM_reg.mem.rs2Data
   io.dataPort.memSize := EX_MEM_reg.mem.memSize
-
-  when(EX_MEM_reg.mem.branch) {
-    flush := true.B
-    nextPc := EX_MEM_reg.wb.aluResult
-  }
-
-  when(csr.io.redirect.valid) {
-    flush := true.B
-    nextPc := csr.io.redirect.pc
-  }
 
   MEM_WB_reg := EX_MEM_reg
 
