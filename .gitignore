@@ -8,3 +8,4 @@ build/
 vivado_project/
 generated/
 bin/
+vivado/project/project.*

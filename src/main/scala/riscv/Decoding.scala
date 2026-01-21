@@ -48,13 +48,30 @@ class Decoder extends Module {
   io.mem := DontCare
   io.wb := DontCare
 
+  io.ex.aluOp := ALUOp.Noop
+  io.ex.aluInput1 := ALUInput1.Rs1
+  io.ex.aluInput2 := ALUInput2.Rs2
+  io.ex.branchType := BranchType.NO
+
   io.mem.memOp := MemOp.Noop
+  io.mem.memSize := MemSize.Word
+  io.mem.rs2Data := 0.U
+  io.mem.branch := false.B
+
+  io.wb.writeEnable := false.B
+  io.wb.writeSource := WriteSource.ALU
+  io.wb.aluResult := 0.U
+  io.wb.rd := io.instr(11, 7)
+  io.wb.pc := 0.U
 
   io.ex.rs1 := io.instr(19, 15)
   io.ex.rs2 := io.instr(24, 20)
-  io.wb.writeEnable := false.B
-  io.ex.branchType := BranchType.NO
-  io.wb.rd := io.instr(11, 7)
+
+  io.ex.csrValid := false.B
+  io.ex.csrCmd := CSRCmd.RW
+  io.ex.csrAddr := 0.U
+  io.ex.isEcall := false.B
+  io.ex.isMret := false.B
 
   val format = Wire(Format())
   format := DontCare
@@ -376,6 +393,42 @@ class Decoder extends Module {
     io.wb.writeSource := WriteSource.ALU
     format := Format.R
   }
+
+  when(io.instr === Instruction.CSRRW) {
+    io.ex.csrValid := true.B
+    io.ex.csrCmd := CSRCmd.RW
+    io.ex.csrAddr := io.instr(31, 20)
+    io.wb.writeEnable := io.instr(11, 7) =/= 0.U
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.CSRRS) {
+    io.ex.csrValid := true.B
+    io.ex.csrCmd := CSRCmd.RS
+    io.ex.csrAddr := io.instr(31, 20)
+    io.wb.writeEnable := io.instr(11, 7) =/= 0.U
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+  }
+  when(io.instr === Instruction.CSRRC) {
+    io.ex.csrValid := true.B
+    io.ex.csrCmd := CSRCmd.RC
+    io.ex.csrAddr := io.instr(31, 20)
+    io.wb.writeEnable := io.instr(11, 7) =/= 0.U
+    io.wb.writeSource := WriteSource.ALU
+    format := Format.I
+
+  }
+
+  when(io.instr === Instruction.ECALL) {
+    io.ex.isEcall := true.B
+    format := Format.I
+  }
+  when(io.instr === Instruction.MRET) {
+    io.ex.isMret := true.B
+    format := Format.I
+  }
+
 }
 
 class ImmGen extends Module {

@@ -14,6 +14,12 @@ object ControlSignals {
     val rs1 = UInt(5.W)
     val rs2 = UInt(5.W)
     val imm = SInt(32.W)
+
+    val csrValid = Bool()
+    val csrCmd = CSRCmd()
+    val csrAddr = UInt(12.W)
+    val isEcall = Bool()
+    val isMret = Bool()
   }
   class MEM extends Bundle {
     val memOp = MemOp()
@@ -35,6 +41,12 @@ object ResetControl {
     val bundle = Wire(new ControlSignals.EX())
     bundle := DontCare
     bundle.branchType := BranchType.NO
+
+    bundle.csrValid := false.B
+    bundle.csrCmd := CSRCmd.RW
+    bundle.csrAddr := 0.U
+    bundle.isEcall := false.B
+    bundle.isMret := false.B
     bundle
   }
   def MEM() = {
@@ -205,6 +217,19 @@ class Pipeline(
     Mux(hazardExWbRs2, opResult, registers.io.reg2Data)
   )
 
+  val csr = Module(new CSR())
+
+  csr.io.currentPc := ID_EX_reg.wb.pc
+  csr.io.retValid := ID_EX_reg.ex.isMret
+
+  csr.io.trap.valid := ID_EX_reg.ex.isEcall
+  csr.io.trap.cause := 11.U
+
+  csr.io.csr.valid := ID_EX_reg.ex.csrValid
+  csr.io.csr.cmd := ID_EX_reg.ex.csrCmd
+  csr.io.csr.addr := ID_EX_reg.ex.csrAddr
+  csr.io.csr.writeData := rs1
+
   if (debug) {
     dontTouch(hazardExMemRs1)
     dontTouch(hazardExMemRs2)
@@ -232,8 +257,11 @@ class Pipeline(
   branch.io.data2 := rs2.asSInt
   branch.io.branchType := ID_EX_reg.ex.branchType
 
+  val execResult =
+    Mux(ID_EX_reg.ex.csrValid, csr.io.csr.readData, alu.io.result.asUInt)
+
   EX_MEM_reg := ID_EX_reg
-  EX_MEM_reg.wb.aluResult := alu.io.result.asUInt
+  EX_MEM_reg.wb.aluResult := execResult
   EX_MEM_reg.mem.rs2Data := rs2
   EX_MEM_reg.mem.branch := branch.io.takeBranch
 
@@ -291,6 +319,11 @@ class Pipeline(
     nextPc := EX_MEM_reg.wb.aluResult
   }
 
+  when(csr.io.redirect.valid) {
+    flush := true.B
+    nextPc := csr.io.redirect.pc
+  }
+
   MEM_WB_reg := EX_MEM_reg
 
   opResult := MuxLookup(MEM_WB_reg.wb.writeSource, MEM_WB_reg.wb.aluResult)(
@@ -303,5 +336,4 @@ class Pipeline(
   registers.io.writeData := opResult
   registers.io.wrEn := MEM_WB_reg.wb.writeEnable
   registers.io.writeReg := MEM_WB_reg.wb.rd
-
 }

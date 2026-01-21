@@ -6,63 +6,91 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
 class CSRSpec extends AnyFunSpec with ChiselSim with Matchers {
+
+  private val CSR_MTVEC = "h305".U
+
+  private def idle(dut: CSR): Unit = {
+    dut.io.csr.valid.poke(false.B)
+    dut.io.csr.cmd.poke(CSRCmd.RW)
+    dut.io.csr.addr.poke(0.U)
+    dut.io.csr.writeData.poke(0.U)
+
+    dut.io.currentPc.poke(0.U)
+    dut.io.trap.valid.poke(false.B)
+    dut.io.trap.cause.poke(0.U)
+    dut.io.retValid.poke(false.B)
+  }
+
+  private def writeCsr(dut: CSR, addr: UInt, data: UInt): Unit = {
+    dut.io.csr.valid.poke(true.B)
+    dut.io.csr.cmd.poke(CSRCmd.RW)
+    dut.io.csr.addr.poke(addr)
+    dut.io.csr.writeData.poke(data)
+
+    dut.clock.step(1)
+
+    // IMPORTANT: stop writing on following cycles
+    dut.io.csr.valid.poke(false.B)
+    dut.io.csr.addr.poke(0.U)
+    dut.io.csr.writeData.poke(0.U)
+  }
+
   describe("CSR trap/return redirect behavior") {
 
-    it("should not redirect") {
+    it("should not redirect when no trap/ret") {
       simulate(new CSR()) { dut =>
-        dut.io.currentPc.poke(0.U)
-        dut.io.trapValid.poke(false.B)
-        dut.io.trapCause.poke(0.U)
-        dut.io.retValid.poke(false.B)
+        idle(dut)
+        dut.clock.step(1)
 
-        dut.clock.step()
-
-        dut.io.redirectValid.expect(false.B)
-        dut.io.redirectPc.expect(0.U)
+        dut.io.redirect.valid.expect(false.B)
+        dut.io.redirect.pc.expect(0.U)
       }
     }
 
-    it("should redirect to tvec on trap and return to saved epc on ret") {
+    it("should redirect to mtvec on trap and to saved mepc on ret") {
       simulate(new CSR()) { dut =>
-        dut.io.trapValid.poke(false.B)
-        dut.io.retValid.poke(false.B)
-        dut.io.trapCause.poke(0.U)
-        dut.io.currentPc.poke(0.U)
-        dut.clock.step()
+        // ===== reset / idle =====
+        idle(dut)
+        dut.clock.step(1)
 
+        // ===== program mtvec = 0x80 =====
+        writeCsr(dut, CSR_MTVEC, "h00000080".U)
+
+        // ===== trap at PC=0x100 =====
         dut.io.currentPc.poke("h00000100".U)
-        dut.io.trapCause.poke("h0000000B".U) // arbitrary value for testing
-        dut.io.trapValid.poke(true.B)
+        dut.io.trap.cause.poke("h0000000B".U)
+        dut.io.trap.valid.poke(true.B)
         dut.io.retValid.poke(false.B)
-        dut.clock.step()
 
-        // on trap redirecting to tvex
-        dut.io.redirectValid.expect(true.B)
-        dut.io.redirectPc.expect("h00000000".U)
-        dut.io.trapValid.poke(false.B)
-        dut.io.currentPc.poke("h00000300".U)
-        dut.clock.step()
+        dut.clock.step(1)
 
-        // should go back to saved epc = 0x100
+        // should redirect to mtvec
+        dut.io.redirect.valid.expect(true.B)
+        dut.io.redirect.pc.expect("h00000080".U)
+
+        // deassert trap
+        dut.io.trap.valid.poke(false.B)
+        dut.clock.step(1)
+
+        // should go back to no redirect
+        dut.io.redirect.valid.expect(false.B)
+        dut.io.redirect.pc.expect(0.U)
+
+        // ===== return (mret) =====
         dut.io.retValid.poke(true.B)
-        dut.clock.step()
+        dut.clock.step(1)
 
-        dut.io.redirectValid.expect(true.B)
-        dut.io.redirectPc.expect("h00000100".U)
+        // should redirect to saved mepc (the trapped PC)
+        dut.io.redirect.valid.expect(true.B)
+        dut.io.redirect.pc.expect("h00000100".U)
 
-        // clear
+        // clear retValid
         dut.io.retValid.poke(false.B)
-        dut.clock.step()
+        dut.clock.step(1)
 
-        dut.io.redirectValid.expect(false.B)
-        dut.io.redirectPc.expect(0.U)
+        dut.io.redirect.valid.expect(false.B)
+        dut.io.redirect.pc.expect(0.U)
       }
     }
-
-    // TODO:
-    // it("Should handle multiple traps and returns") {
-    //  simulate(new CSR()) { dut =>
-    //  }
-    // }
   }
 }

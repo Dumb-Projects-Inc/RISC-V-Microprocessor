@@ -4,7 +4,7 @@ import chisel3._
 import os._
 import chisel3.simulator.scalatest.ChiselSim
 import chisel3.util.experimental.loadMemoryFromFile
-import com.carlosedp.riscvassembler.RISCVAssembler
+import riscv.memory.AssemblerCompat
 
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.Tag
@@ -27,7 +27,7 @@ class TestTop(instr: String) extends Module {
   io.pc := pipeline.dbg.get.pc
   val program = SyncReadMem(1024, UInt(32.W))
 
-  val hex = RISCVAssembler.fromString(instr.stripMargin)
+  val hex = AssemblerCompat.fromString(instr.stripMargin)
 
   val tempFile = os.temp(suffix = ".hex")
   os.write.over(tempFile, hex)

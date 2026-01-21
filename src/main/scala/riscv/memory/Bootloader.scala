@@ -96,7 +96,7 @@ delay:
   """
 
   def assemble(program: String): Seq[UInt] = {
-    val prog = RISCVAssembler
+    val prog = AssemblerCompat
       .fromString(program)
       .split("\\R")
       .map(_.trim)
