@@ -85,11 +85,10 @@ object CacheSignals {
   * data caches. Cache coherency is only ensured for I-cache if fence.i is
   * called (needs to be implemented).
   */
-class CacheController() extends Module {
+class CacheController(rom: Seq[UInt]) extends Module {
   import CacheSignals._
   val io = IO(new Bundle {
     val instrPort = Flipped(new riscv.instrPort())
-    val ROMIn = Input(UInt(32.W))
     val dataPort = Flipped(new riscv.dataPort())
     val bus = Bus.RequestPort()
     // val flush = Input(Bool()) // fence.i instruction
@@ -98,6 +97,9 @@ class CacheController() extends Module {
   io.bus.init()
   io.instrPort := DontCare
   io.dataPort := DontCare
+
+  val ROM = VecInit(rom) // Simple ROM implementation for BIOS
+  val ROM_MAX = log2Ceil(rom.length)
 
   // Check region of instruction fetch
   def getRegion(addr: UInt): MemoryRegions.Type =
@@ -112,10 +114,10 @@ class CacheController() extends Module {
 
   // val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
   val DDat = SyncReadMem(
-    4096,
+    256000,
     Vec(4, UInt(8.W)),
     SyncReadMem.WriteFirst
-  ) // 4KB data cache // vec to enable masks
+  ) // 1mb data cache // vec to enable masks
 
   val IReq =
     Request(
@@ -155,8 +157,8 @@ class CacheController() extends Module {
   )
 
   // always fetch instructions from both idat and rom
-  val iDatData = DDat.read(io.instrPort.addr(13, 2), IReq.valid)
-  val iRomData = io.ROMIn
+  val iDatData = DDat.read(io.instrPort.addr(19, 2), IReq.valid)
+  val iRomData = RegNext(ROM(io.instrPort.addr(ROM_MAX + 1, 2)), 0.U)
 
   when(IResp.valid) {
     io.instrPort.instr := MuxCase(
@@ -170,9 +172,11 @@ class CacheController() extends Module {
 
   // always fetch data from  ddat
   val dDatData = DDat.read(
-    io.dataPort.addr(13, 2),
+    io.dataPort.addr(19, 2),
     DReq.memOp === MemOp.Load || DReq.memOp === MemOp.LoadUnsigned
   )
+  val dRomData = RegNext(ROM(io.dataPort.addr(ROM_MAX + 1, 2)), 0.U)
+
   when(DReq.valid) {
     // load request
     when(DReq.region === MemoryRegions.Peripherals) {
@@ -209,7 +213,7 @@ class CacheController() extends Module {
         )
       )
       DDat.write(
-        io.dataPort.addr(13, 2),
+        io.dataPort.addr(19, 2),
         writeData.asTypeOf(Vec(4, UInt(8.W))),
         mask.asTypeOf(Vec(4, Bool()))
       )
@@ -221,7 +225,8 @@ class CacheController() extends Module {
       0.U,
       Seq(
         (DResp.region === MemoryRegions.ProgramMemory) -> dDatData.asUInt,
-        (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData
+        (DResp.region === MemoryRegions.Peripherals) -> io.bus.rdData,
+        (DResp.region === MemoryRegions.ROM) -> dRomData
       )
     )
     when(DResp.memOp === MemOp.Load || DResp.memOp === MemOp.LoadUnsigned) {

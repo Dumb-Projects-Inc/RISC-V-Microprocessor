@@ -44,7 +44,8 @@ object Bootloader {
   addi x0, x0, 0 
 """
   private val helloWorld = """
-  addi x14, x0, 0x10
+  addi x14, x0, 0
+  lui x14, 0x000010 
   addi x11, x0, 72
   sb x11, 0(x14)
   addi x11, x0 , 101
@@ -74,7 +75,8 @@ object Bootloader {
   sb x11, 13(x14)
 
 start:
-  addi x14, x0, 0x10
+  addi x14, x0, 0
+  lui x14, 0x000010
   lui  x10, 0x00001
   addi x3, x0, 14
 

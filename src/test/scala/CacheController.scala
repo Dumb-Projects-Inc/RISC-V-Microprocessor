@@ -61,11 +61,8 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
         val instrStall = Output(Bool())
       })
 
-      val dut = Module(new CacheController())
-      val rom = Module(new InstructionROM(romContent))
+      val dut = Module(new CacheController(romContent))
 
-      rom.io.addr := io.addr
-      dut.io.ROMIn := rom.io.instruction
       dut.io.bus.rdData := "hDEADBEEF".U
       dut.io.bus.rdValid := false.B
       dut.io.bus.stall := false.B
@@ -99,11 +96,10 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
   }
 
   it should "store/load a 32-bit word from ProgramMemory (DDat)" in {
-    simulate(new CacheController) { c =>
+    simulate(new CacheController(Seq.fill(1024)(0.U(32.W)))) { c =>
       // Tie off unused instruction side / bus responses
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
-      c.io.ROMIn.poke(0.U)
       c.io.bus.rdData.poke(0.U)
       c.io.bus.rdValid.poke(false.B)
       c.io.bus.stall.poke(false.B)
@@ -131,10 +127,9 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
   }
 
   it should "support byte stores with masking and signed/unsigned byte loads" in {
-    simulate(new CacheController) { c =>
+    simulate(new CacheController(Seq.fill(1024)(0.U(32.W)))) { c =>
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
-      c.io.ROMIn.poke(0.U)
       c.io.bus.rdData.poke(0.U)
       c.io.bus.rdValid.poke(false.B)
       c.io.bus.stall.poke(false.B)
@@ -170,10 +165,9 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
   }
 
   it should "support halfword stores with masking and signed/unsigned halfword loads" in {
-    simulate(new CacheController) { c =>
+    simulate(new CacheController(Seq.fill(1024)(0.U(32.W)))) { c =>
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
-      c.io.ROMIn.poke(0.U)
       c.io.bus.rdData.poke(0.U)
       c.io.bus.rdValid.poke(false.B)
       c.io.bus.stall.poke(false.B)
@@ -208,10 +202,9 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
   }
 
   it should "preserve unaffected bytes when mixing byte/halfword stores in the same word" in {
-    simulate(new CacheController) { c =>
+    simulate(new CacheController(Seq.fill(1024)(0.U(32.W)))) { c =>
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
-      c.io.ROMIn.poke(0.U)
       c.io.bus.rdData.poke(0.U)
       c.io.bus.rdValid.poke(false.B)
       c.io.bus.stall.poke(false.B)

@@ -4,7 +4,6 @@ import chisel3._
 import chisel3.stage.ChiselGeneratorAnnotation
 import circt.stage.{ChiselStage, FirtoolOption}
 import riscv.memory.CacheController
-import riscv.memory.InstructionROM
 import riscv.memory.Bootloader
 import lib.peripherals.MMIOUart
 import riscv.memory.MemoryMap
@@ -39,9 +38,8 @@ class RV32ITop(program: String = "", debug: Boolean = false)
     prog_bytes = Bootloader.filetoSeq(program)
   }
 
-  val ROM = Module(new InstructionROM(program = prog_bytes))
   val MMU = Module(
-    new CacheController()
+    new CacheController(rom = prog_bytes)
   )
 
   val deb_btn = RegNext(RegNext(io.btn), 0.U) // simple debouncer
@@ -52,9 +50,6 @@ class RV32ITop(program: String = "", debug: Boolean = false)
 
   pipeline.io.instrPort <> MMU.io.instrPort
   pipeline.io.dataPort <> MMU.io.dataPort
-
-  ROM.io.addr := pipeline.io.instrPort.addr(12, 0)
-  MMU.io.ROMIn := ROM.io.instruction
 
   val uart = Module(
     new MMIOUart(Freq = 100000000, BaudRate = 9600)
