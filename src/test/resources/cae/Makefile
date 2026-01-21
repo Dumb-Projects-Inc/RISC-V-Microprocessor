@@ -1,5 +1,10 @@
 # Toolchain
-PREFIX = riscv32-unknown-linux-gnu-
+RV64 ?= N
+ifeq ($(RV64), Y)
+	PREFIX = riscv64-unknown-elf-
+else
+	PREFIX = riscv32-unknown-elf-
+endif
 CC = $(PREFIX)gcc
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
