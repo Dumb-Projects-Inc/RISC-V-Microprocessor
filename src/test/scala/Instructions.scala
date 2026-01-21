@@ -528,6 +528,35 @@ class Instructions extends AnyFunSpec with ChiselSim {
     }
   }
   it(
+    "should preserve register read data during load-use stall",
+    Hazard
+  ) {
+    val input =
+      """
+        addi x10, x0, 64
+        addi x14, x0, 65
+        addi x1, x0, 128
+        addi x2, x0, 0xFF
+        sw   x2, 0(x1)
+
+        // Trigger sequence:
+        lw   x11, 0(x1)
+        sw   x11, 0(x10)
+        addi x14, x14, 1
+
+        lw   x3, 0(x10)
+        addi x0, x0, 0
+        addi x0, x0, 0
+        addi x0, x0, 0
+        """
+    simulate(new TestTop(input)) { dut =>
+      dut.clock.step(15)
+      dut.io
+        .dbg(3)
+        .expect(0xff.U)
+    }
+  }
+  it(
     "should not clobber source pointer or lose load during load-use stall in lbu->sw loop",
     Hazard
   ) {
