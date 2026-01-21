@@ -81,9 +81,8 @@ object CacheSignals {
 }
 
 /** CacheController using [[Cache]] and memory regions This cachecontroller
-  * implements the (Modified) Harvard architecture by separating instruction and
-  * data caches. Cache coherency is only ensured for I-cache if fence.i is
-  * called (needs to be implemented).
+  * Implements Von Neumann architecture where instructions and data share the
+  * same memory space
   */
 class CacheController(rom: Seq[UInt]) extends Module {
   import CacheSignals._
@@ -114,10 +113,10 @@ class CacheController(rom: Seq[UInt]) extends Module {
 
   // val IDat = SyncReadMem(2048, UInt(32.W)) // 4KB data cache
   val DDat = SyncReadMem(
-    256000,
+    32000,
     Vec(4, UInt(8.W)),
     SyncReadMem.WriteFirst
-  ) // 1mb data cache // vec to enable masks
+  ) // 128kib data cache // vec to enable masks
 
   val IReq =
     Request(
@@ -157,7 +156,9 @@ class CacheController(rom: Seq[UInt]) extends Module {
   )
 
   // always fetch instructions from both idat and rom
-  val iDatData = DDat.read(io.instrPort.addr(19, 2), IReq.valid)
+  val iDatIdx = (io.instrPort.addr - MemoryMap.dataStart.U)(16, 2)
+  val iDatData =
+    DDat.read(iDatIdx, IReq.valid)
   val iRomData = RegNext(ROM(io.instrPort.addr(ROM_MAX + 1, 2)), 0.U)
 
   when(IResp.valid) {
@@ -171,8 +172,9 @@ class CacheController(rom: Seq[UInt]) extends Module {
   }
 
   // always fetch data from  ddat
+  val dDatIdx = (io.dataPort.addr - MemoryMap.dataStart.U)(16, 2)
   val dDatData = DDat.read(
-    io.dataPort.addr(19, 2),
+    dDatIdx,
     DReq.memOp === MemOp.Load || DReq.memOp === MemOp.LoadUnsigned
   )
   val dRomData = RegNext(ROM(io.dataPort.addr(ROM_MAX + 1, 2)), 0.U)
@@ -213,7 +215,7 @@ class CacheController(rom: Seq[UInt]) extends Module {
         )
       )
       DDat.write(
-        io.dataPort.addr(19, 2),
+        dDatIdx,
         writeData.asTypeOf(Vec(4, UInt(8.W))),
         mask.asTypeOf(Vec(4, Bool()))
       )
