@@ -126,7 +126,7 @@ class Debug extends Bundle {
 }
 
 class Pipeline(
-    debug: Boolean = false,
+    debug: Boolean = true,
     debugPrint: Boolean = false,
     pcInit: Long = 0
 ) extends Module {
@@ -182,8 +182,8 @@ class Pipeline(
   val decoder = Module(new Decoder)
   decoder.io.instr := Mux(flush, Instruction.NOP, io.instrPort.instr)
 
-  registers.io.readReg1 := decoder.io.ex.rs1
-  registers.io.readReg2 := decoder.io.ex.rs2
+  registers.io.readReg1 := Mux(stall, ID_EX_reg.ex.rs1, decoder.io.ex.rs1)
+  registers.io.readReg2 := Mux(stall, ID_EX_reg.ex.rs2, decoder.io.ex.rs2)
 
   ID_EX_reg := decoder.io
   ID_EX_reg.wb.pc := pc
