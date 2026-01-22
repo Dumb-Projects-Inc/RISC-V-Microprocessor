@@ -398,7 +398,7 @@ class Decoder extends Module {
     io.ex.csrValid := true.B
     io.ex.csrCmd := CSRCmd.RW
     io.ex.csrAddr := io.instr(31, 20)
-    io.wb.writeEnable := io.instr(11, 7) =/= 0.U
+    io.wb.writeEnable := false.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
@@ -406,7 +406,7 @@ class Decoder extends Module {
     io.ex.csrValid := true.B
     io.ex.csrCmd := CSRCmd.RS
     io.ex.csrAddr := io.instr(31, 20)
-    io.wb.writeEnable := io.instr(11, 7) =/= 0.U
+    io.wb.writeEnable := false.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
   }
@@ -414,7 +414,7 @@ class Decoder extends Module {
     io.ex.csrValid := true.B
     io.ex.csrCmd := CSRCmd.RC
     io.ex.csrAddr := io.instr(31, 20)
-    io.wb.writeEnable := io.instr(11, 7) =/= 0.U
+    io.wb.writeEnable := false.B
     io.wb.writeSource := WriteSource.ALU
     format := Format.I
 
