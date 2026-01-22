@@ -1,9 +1,9 @@
 # Toolchain
 RV64 ?= N
 ifeq ($(RV64), Y)
-	PREFIX = riscv64-unknown-elf-
+	PREFIX = riscv64-unknown-linux-gnu-
 else
-	PREFIX = riscv32-unknown-elf-
+	PREFIX = riscv32-unknown-linux-gnu-
 endif
 CC = $(PREFIX)gcc
 OBJCOPY = $(PREFIX)objcopy
