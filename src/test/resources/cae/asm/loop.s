@@ -6,6 +6,8 @@
 	.text
  #APP
 	li sp, 0x00020000
+  li s0, 0x0
+  li s1, 0x0
 	jal main
 	li a7, 10
 	ecall
