@@ -208,5 +208,12 @@ int main()
     uart_write_char(uart, ENDBYTE); // end benchmark if no csr
 #endif
 
+// send to registerfile
+#ifdef REGISTER_TEST
+    __asm__ volatile("mv a0, %0" : : "r"(num));
+    __asm__ volatile("mv a1, %0" : : "r"(primes[NUM_PRIMES - 1]));
+    __asm__ volatile("ecall");
+#endif
+
     return 0;
 }

@@ -6,6 +6,7 @@ NUM_PRIMES ?= 25
 
 CSR_EN ?= N
 DEBUG_EN ?= N
+REGISTER_TEST ?= N
 
 # Toolchain
 # Shamelessly stealing from Schoeberl to support mac
@@ -36,6 +37,9 @@ else
 endif
 ifeq ($(DEBUG_EN), Y)
 	DEFINES += -DDEBUG_EN
+endif
+ifeq ($(REGISTER_TEST), Y)
+	DEFINES += -DREGISTER_TEST
 endif
 
 TARGET = prime
