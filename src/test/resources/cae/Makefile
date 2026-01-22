@@ -1,6 +1,6 @@
-CC      ?= riscv64-unknown-elf-gcc
-OBJCOPY ?= riscv64-unknown-elf-objcopy
-OBJDUMP ?= riscv64-unknown-elf-objdump
+CC      ?= riscv32-none-elf-gcc
+OBJCOPY ?= riscv32-none-elf-objcopy
+OBJDUMP ?= riscv32-none-elf-objdump
 
 ASM_DIR = asm
 BIN_DIR = bin

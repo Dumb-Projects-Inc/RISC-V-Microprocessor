@@ -50,6 +50,8 @@
             python3
             jdk
             metals
+            crossPkgs.gcc
+            crossPkgs.binutils
           ];
           CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
           RISCV_TEST_BIN_DIR = "${testBinaries}/bin";
