@@ -1,55 +1,69 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
-  outputs = {
+  outputs = inputs @ {
     self,
     nixpkgs,
+    flake-parts,
     ...
-  }: let
-    systems = ["x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin"];
-    forAllSystems = nixpkgs.lib.genAttrs systems;
-  in {
-    overlays.default = final: prev: let
-      jdk = prev.jdk21_headless;
-    in {
-      sbt = prev.sbt.override {jre = jdk;};
-    };
+  }:
+    flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin"];
 
-    devShells = forAllSystems (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [self.overlays.default];
+      perSystem = {
+        config,
+        self',
+        inputs',
+        pkgs,
+        system,
+        ...
+      }: let
+        jdk = pkgs.jdk21_headless;
+        sbt = pkgs.sbt.override {jre = jdk;};
+        crossPkgs = pkgs.pkgsCross.riscv32-embedded;
+
+        testBinaries = crossPkgs.stdenv.mkDerivation {
+          name = "riscv-test-binaries";
+          src = ./src/test/resources/cae;
+          makeFlags = [
+            "CC=${crossPkgs.stdenv.cc.targetPrefix}gcc"
+            "OBJCOPY=${crossPkgs.stdenv.cc.targetPrefix}objcopy"
+            "OBJDUMP=${crossPkgs.stdenv.cc.targetPrefix}objdump"
+          ];
+          installPhase = ''
+            mkdir -p $out/bin
+            cp bin/*.bin $out/bin/
+          '';
         };
-        crossCompilation = pkgs.pkgsCross.riscv32.buildPackages;
       in {
-        default = pkgs.mkShell {
+        packages = {
+          test-bins = testBinaries;
+        };
+
+        devShells.user = pkgs.mkShell {
           packages = with pkgs; [
             sbt
             verilator
-            circt
             python3
-            jdk21_headless
+            jdk
+            metals
           ];
           CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
+          RISCV_TEST_BIN_DIR = "${testBinaries}/bin";
         };
-        user = pkgs.mkShell {
-          packages = with pkgs;
-            [
-              sbt
-              verilator
-              circt
-              python3
-              jdk21_headless
-              metals
-              gtkwave
-            ]
-            ++ [crossCompilation.gcc crossCompilation.binutils];
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs; [
+            sbt
+            jdk
+            verilator
+            python3
+          ];
           CHISEL_FIRTOOL_PATH = "${pkgs.circt}/bin";
+          RISCV_TEST_BIN_DIR = "${testBinaries}/bin";
         };
-      }
-    );
-  };
+      };
+    };
 }

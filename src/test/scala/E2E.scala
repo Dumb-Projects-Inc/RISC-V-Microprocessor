@@ -5,21 +5,19 @@ import chisel3.simulator.scalatest.ChiselSim
 import org.scalatest.funspec.AnyFunSpec
 import java.nio.file.Files
 import java.io.File
+import scala.util.Properties
 import rvsim.VM
 
 class E2ESpec extends AnyFunSpec with ChiselSim {
 
-  // Helper to locate binary files
-  def getTestBinaries(folder: String): Array[File] = {
-    val dir = new File(folder)
-    if (dir.exists && dir.isDirectory)
-      dir.listFiles.filter(_.getName.endsWith(".bin"))
-    else Array.empty
-  }
-
   describe("RISC-V Microprocessor E2E Tests") {
-    val binFolder = "src/test/resources/cae/bin"
-    val testFiles = getTestBinaries(binFolder)
+    val binFolder =
+      Properties.envOrElse("RISCV_TEST_BIN_DIR", "src/test/resources/cae/bin")
+    val dir = new File(binFolder)
+    val testFiles =
+      if (dir.exists && dir.isDirectory)
+        dir.listFiles.filter(_.getName.endsWith(".bin"))
+      else Array.empty
 
     if (testFiles.isEmpty) {
       it("should find test binaries") {
