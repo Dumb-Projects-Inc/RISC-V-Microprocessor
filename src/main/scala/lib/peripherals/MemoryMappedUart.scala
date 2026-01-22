@@ -26,22 +26,29 @@ class Rx(freq: Int, baud: Int) extends Module {
   val fallingEdge = rxReg && !io.rxData
 
   val shiftReg = RegInit(0.U(8.W))
-  val (cntReg, _) = Counter(
-    0 to UUtils.BitCount(baud, freq) by 1
-  ) // have some idle time before listening
+  val cntReg = RegInit(0.U(20.W))
+
   val bitsReg = RegInit(0.U(4.W))
   val valReg = RegInit(false.B)
 
+  // Default behavior: decrement counter
+  when(cntReg =/= 0.U) {
+    cntReg := cntReg - 1.U
+  }
+
   when(cntReg === 0.U) {
     when(bitsReg =/= 0.U) {
+      // Data bit sampling phase
       cntReg := UUtils.BitCount(baud, freq).U
-      shiftReg := Cat(rxReg, shiftReg >> 1)
+      shiftReg := Cat(rxReg, shiftReg(7, 1)) // Shift LSB logic
       bitsReg := bitsReg - 1.U
-      // the last shifted in
+
+      // When 8 bits collected (bitsReg goes from 1 to 0)
       when(bitsReg === 1.U) {
         valReg := true.B
       }
-    }.elsewhen(fallingEdge) { // wait 1.5 bits after falling edge of start
+    }.elsewhen(fallingEdge) {
+      // Start bit detected: wait 1.5 bits to sample middle of bit 0
       cntReg := UUtils.StartRxCount(baud, freq).U
       bitsReg := 8.U
     }
@@ -146,7 +153,5 @@ class MMIOUart(Freq: Int, BaudRate: Int, baseAddr: BigInt = Addresses.UART_ADDR)
     rxBuffer.io.deq.bits,
     0.U(30.W) ## rxBuffer.io.deq.valid ## txBuffer.io.enq.ready
   )
-  io.dbus.stall := false.B
-  io.dbus.rdValid := false.B
 
 }

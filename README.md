@@ -10,3 +10,10 @@ sbt run # Runs the chisel elaboration for the processor
 sbt test # Run all tests
 sbt testOnly riscv.E2ESpec # Test the processor against ISA simulator
 ```
+
+# Final running
+```bash
+make
+cd bios
+uv run loader.py
+```

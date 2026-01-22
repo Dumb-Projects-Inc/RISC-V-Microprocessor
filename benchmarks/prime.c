@@ -128,7 +128,7 @@ void uart_read_line(volatile UART_t *uart, unsigned char *buffer, unsigned int m
 __attribute__((section(".text.start"))) __attribute__((naked)) void entry()
 {
     // We love that no stack pointer is initialized by default
-    __asm__ volatile("li sp, 0x1F000"); // Set stack pointer to top of memory
+    __asm__ volatile("li sp, 0x2FFF0"); // Set stack pointer to top of memory
     __asm__ volatile("jal ra, main");
     __asm__ volatile("ecall"); // infinite loop after main returns
 }

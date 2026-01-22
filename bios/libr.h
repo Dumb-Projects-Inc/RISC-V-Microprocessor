@@ -13,6 +13,15 @@ static inline int read_cycle(void)
     return value;
 }
 
+static inline void bp()
+{
+    void *a7_prev;
+    __asm__ volatile("mv %0, a7" : "=r"(a7_prev));
+    __asm__ volatile("li a7, 2"); // syscall 2 is breakpoint
+    __asm__ volatile("ecall");
+    __asm__ volatile("mv a7, %0" : : "r"(a7_prev));
+}
+
 unsigned int squared(unsigned int x)
 {
     unsigned int result = 0;

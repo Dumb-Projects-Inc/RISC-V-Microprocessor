@@ -60,16 +60,20 @@ class RV32ITop(program: String = "", debug: Boolean = false)
 
   MMU.io.bus <> uart.io.dbus
 
-  val led = Module(new MemoryMappedLeds(16, baseAddr = Addresses.LED_ADDR))
-  led.io.bus <> MMU.io.bus
-  io.LED := led.io.pins
+  // val led = Module(new MemoryMappedLeds(16, baseAddr = Addresses.LED_ADDR))
+  // led.io.bus <> MMU.io.bus
+  // io.LED := led.io.pins
+  val led = RegInit(0.U(16.W))
+  io.LED := led
+  when(pipeline.io.dataPort.enable) {
+    led := pipeline.io.dataPort.addr(15, 0)
+  }
 
-  val switches = Module(
-    new MemoryMappedSwitches(16, baseAddr = Addresses.SWITCH_ADDR)
-  )
-  switches.io.pins := io.sw
-  switches.io.bus <> MMU.io.bus
-
+  // val switches = Module(
+  //  new MemoryMappedSwitches(16, baseAddr = Addresses.SWITCH_ADDR)
+  // )
+  // switches.io.pins := io.sw
+  // switches.io.bus <> MMU.io.bus
   // ###############################################
   // Debugging interface
   // ###############################################

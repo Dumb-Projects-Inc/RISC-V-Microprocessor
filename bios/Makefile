@@ -15,7 +15,7 @@ OBJCOPY = $(CROSS)objcopy
 # Compiler flags for RV32I bare metal
 CFLAGS = -mabi=ilp32 -O0 
 CFLAGS += -ffreestanding -nostdlib -e entry -T link.ld
-CFLAGS += -march=rv32i
+CFLAGS += -march=rv32ia_zicsr
 
 
 TARGET = bios
@@ -31,9 +31,6 @@ $(TARGET).elf: $(SRC) $(HEADERS)
 
 $(TARGET).bin: $(TARGET).elf
 	$(OBJCOPY) -O binary $< $@
-
-test-hw: $(TARGET).elf
-	python3 benchy.py --addr $(UART_ADDR) --csr $(CSR_EN)
-
+	
 clean:
 	rm -f *.elf *.o *.bin

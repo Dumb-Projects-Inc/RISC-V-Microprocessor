@@ -22,7 +22,6 @@ class MemoryMappedLeds(
   val hitRead = io.bus.hasReadRequestAt(ADDR)
   val hitWrite = io.bus.hasWriteRequestAt(ADDR)
 
-  io.bus.stall := false.B
   io.pins := ledReg
 
   when(hitWrite) {

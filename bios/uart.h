@@ -43,7 +43,7 @@ void uart_read_char(volatile UART_t *uart, unsigned char *out)
     // wait until data is available
     while ((uart->STATUS & 0x2) == 0)
         ;
-    *out = (unsigned char)uart->DATA;
+    *out = (unsigned char)(uart->DATA & 0xFF);
 }
 
 void uart_read_line(volatile UART_t *uart, unsigned char *buffer, unsigned int max_length)

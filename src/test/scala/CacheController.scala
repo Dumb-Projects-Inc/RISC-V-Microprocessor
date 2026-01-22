@@ -64,8 +64,6 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
       val dut = Module(new CacheController(romContent))
 
       dut.io.bus.rdData := "hDEADBEEF".U
-      dut.io.bus.rdValid := false.B
-      dut.io.bus.stall := false.B
 
       dut.io.instrPort.addr := io.addr
       dut.io.instrPort.enable := true.B
@@ -101,9 +99,6 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
       c.io.bus.rdData.poke(0.U)
-      c.io.bus.rdValid.poke(false.B)
-      c.io.bus.stall.poke(false.B)
-
       driveIdle(c)
       c.clock.step()
 
@@ -131,8 +126,6 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
       c.io.bus.rdData.poke(0.U)
-      c.io.bus.rdValid.poke(false.B)
-      c.io.bus.stall.poke(false.B)
 
       driveIdle(c); c.clock.step()
 
@@ -169,8 +162,6 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
       c.io.bus.rdData.poke(0.U)
-      c.io.bus.rdValid.poke(false.B)
-      c.io.bus.stall.poke(false.B)
 
       driveIdle(c); c.clock.step()
 
@@ -206,8 +197,6 @@ class CacheControllerSpec extends AnyFlatSpec with ChiselSim with Matchers {
       c.io.instrPort.enable.poke(false.B)
       c.io.instrPort.addr.poke(0.U)
       c.io.bus.rdData.poke(0.U)
-      c.io.bus.rdValid.poke(false.B)
-      c.io.bus.stall.poke(false.B)
 
       driveIdle(c); c.clock.step()
 

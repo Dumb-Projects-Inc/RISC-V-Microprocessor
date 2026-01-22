@@ -21,13 +21,10 @@ class MemoryMappedSwitches(
   val switchReg = RegInit(0.U(cnt.W))
   val hitRead = io.bus.hasReadRequestAt(ADDR)
 
-  io.bus.stall := false.B
-  io.bus.rdValid := false.B
   switchReg := switchReg
 
   when(RegNext(hitRead, false.B)) {
     io.bus.rdData := Cat(0.U((32 - cnt).W), io.pins)
-    io.bus.rdValid := true.B
   }
 
 }

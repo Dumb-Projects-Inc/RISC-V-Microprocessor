@@ -12,8 +12,6 @@ object Bus {
     val wrData = Output(UInt(32.W))
 
     val rdData = Input(UInt(32.W))
-    val stall = Input(Bool())
-    val rdValid = Input(Bool())
 
     def init(): Unit
   }
@@ -46,9 +44,7 @@ object Bus {
     def hasReadRequestAt(a: UInt): Bool = read && (addr === a)
 
     def init(): Unit = {
-      rdData := 0.U
-      stall := false.B
-      rdValid := false.B
+      rdData := DontCare
     }
   }
 
@@ -57,27 +53,5 @@ object Bus {
   }
   object RequestPort {
     def apply(): RequestPort = new RequestPort
-  }
-}
-
-object BusConnecter {
-
-  def connect(master: Bus.RequestPort, slaves: Seq[Bus.RespondPort]): Unit = {
-
-    for (s <- slaves) {
-      s.addr := master.addr
-      s.read := master.read
-      s.write := master.write
-      s.wrData := master.wrData
-    }
-
-    val valids = VecInit(slaves.map(_.rdValid))
-
-    master.rdValid := valids.asUInt.orR
-    master.rdData := Mux1H(slaves.map(s => s.rdValid -> s.rdData))
-    master.stall := slaves
-      .map(_.stall)
-      .reduce(_ || _) // TODO: Smarter stall logic
-
   }
 }
