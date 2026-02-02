@@ -5,6 +5,9 @@ typedef struct
 {
     volatile unsigned int DATA;   // Offset 0x00: Data Register
     volatile unsigned int STATUS; // Offset 0x04: Status Register
+    // Bit 0: TX Ready
+    // Bit 1: RX Data Available
+    // Bit 2: RX Full
 
 } UART_t;
 
@@ -44,6 +47,11 @@ void uart_read_char(volatile UART_t *uart, unsigned char *out)
     while ((uart->STATUS & 0x2) == 0)
         ;
     *out = (unsigned char)(uart->DATA & 0xFF);
+}
+
+static inline int uart_rx_full(volatile UART_t *uart)
+{
+    return (uart->STATUS & 0x4) != 0;
 }
 
 void uart_read_line(volatile UART_t *uart, unsigned char *buffer, unsigned int max_length)

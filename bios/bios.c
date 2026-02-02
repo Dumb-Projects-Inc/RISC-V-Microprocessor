@@ -23,7 +23,7 @@ int main()
     bp();
 
     // load and jump to OS entry point
-    __asm__ volatile("mv a0, %0" : : "r"(0x00010004)); // load address where program will be loaded
+    __asm__ volatile("mv a0, %0" : : "r"(0x00010000)); // load address where program will be loaded
     __asm__ volatile("li a7, 1");                      // syscall 1 is load_program
     __asm__ volatile("ecall");                         // trigger trap to load program
     return 0;
@@ -129,15 +129,18 @@ void load_program(void *a0)
     // get data from uart and load into memory starting from address in a0
     volatile unsigned int load_addr = (unsigned int)a0;
     unsigned int ff_cnt = 0;
+    unsigned int loaded = 0;
+    static const unsigned char done[] = {'I', 'M', 'D', 'O', 'N', 'E'};
 
     while (1)
     {
         unsigned char c;
         uart_read_char(uart, &c);
-        if (c == 0xff) // EOT
+
+        if (done[ff_cnt] == c) // EOT
         {
             ff_cnt++;
-            if (ff_cnt == 4)
+            if (ff_cnt == 6)
                 break;
         }
         else
@@ -146,10 +149,13 @@ void load_program(void *a0)
         }
         *((unsigned char *)load_addr) = c;
         load_addr++;
+        loaded++;
     }
     // Set MEPC to a0 and return
-    uart_write_string(uart, "Program loaded. Jumping to entry point...\n");
-    __asm__ volatile("csrw mepc, %0" : : "r"((unsigned int)a0));
+    uart_write_string(uart, "Program loaded. loaded bytes: ");
+    uart_write_int(uart, loaded);
+    uart_write_string(uart, "\n Jumping to loaded program.\n");
+    __asm__ volatile("csrw mepc, %0" ::"r"(0x10000));
     __asm__ volatile("mret");
 }
 

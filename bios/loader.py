@@ -1,6 +1,6 @@
 import serial
 import serial.tools.list_ports
-
+import time
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import PathCompleter
 
@@ -11,9 +11,28 @@ def load_program(ser: serial.Serial, filepath: str):
         program_data = f.read()
     program_size = len(program_data)
     print(f"Loading program of size {program_size} bytes...")
-    ser.write(program_data)
-    ser.write(b'\xff\xff\xff\xff')  # send four 0xff bytes to indicate end of transmission
-    print("Program loaded successfully.")
+
+    # Clear any pending output from BIOS (like the address print or newlines)
+    # to ensure our first read() gets the specific handshake byte
+    time.sleep(0.1)
+    ser.reset_input_buffer()
+
+    start_time = time.time()
+    
+    for byte in program_data:
+        ser.write(bytes([byte]))
+        time.sleep(0.02)  # small delay to avoid overwhelming the UART
+
+    
+    
+    # Send IMDONE. The BIOS will ACK these characters too.
+    for char in b'IMDONE':
+        ser.write(bytes([char]))
+        time.sleep(0.02)
+
+    duration = time.time() - start_time
+    print(f"Program loaded successfully in {duration:.2f}s.")
+    ser.reset_input_buffer()
 
 def main():
     print("Cougar Terminal Utility")
@@ -29,7 +48,11 @@ def main():
     with serial.Serial(port_name, baud_rate, timeout=1, stopbits=2) as ser:
         print(f"Connected to {port_name} at {baud_rate} baud.")
         while True:
-            line = ser.readline().decode('utf-8').strip()
+            try:
+                line = ser.readline().decode('utf-8').strip()
+            except UnicodeDecodeError:
+                print("Received undecodable bytes, skipping...")
+                continue
             if line == "":
                 continue
             if line.startswith("Load program"):  # assuming 0x7f is the request byte for loading a program

@@ -109,7 +109,7 @@ class Tx(freq: Int, baud: Int) extends Module {
   * only)
   *
   * Status register bits: Bit 0: TX Ready (1 = ready to accept new data) Bit 1:
-  * RX Valid (1 = data available to read)
+  * RX Valid (1 = data available to read) BIT 2: data lost when 1
   *
   * @param Freq
   * @param BaudRate
@@ -130,14 +130,14 @@ class MMIOUart(Freq: Int, BaudRate: Int, baseAddr: BigInt = Addresses.UART_ADDR)
   val rxMod = Module(new Rx(Freq, BaudRate))
 
   // Uart is slow, so we just buffer everything
-  val txBuffer = Module(new Queue(UInt(8.W), 32))
-  val rxBuffer = Module(new Queue(UInt(8.W), 32))
+  val txBuffer = Module(new Queue(UInt(8.W), 64))
+  val rxBuffer = Module(new Queue(UInt(8.W), 64))
 
   txMod.io.UartIO <> txBuffer.io.deq
   rxBuffer.io.enq <> rxMod.io.UartIO
 
   val dataRead = RegNext(io.dbus.hasReadRequestAt(baseAddr.U), false.B)
-  val statusRead = RegNext(io.dbus.hasReadRequestAt((baseAddr + 4).U), false.B)
+  // val statusRead = RegNext(io.dbus.hasReadRequestAt((baseAddr + 4).U), false.B)
   val dataWrite = io.dbus.hasWriteRequestAt(baseAddr.U)
 
   txBuffer.io.enq.valid := dataWrite
@@ -151,7 +151,9 @@ class MMIOUart(Freq: Int, BaudRate: Int, baseAddr: BigInt = Addresses.UART_ADDR)
   io.dbus.rdData := Mux(
     dataRead,
     rxBuffer.io.deq.bits,
-    0.U(30.W) ## rxBuffer.io.deq.valid ## txBuffer.io.enq.ready
+    0.U(
+      29.W
+    ) ## rxBuffer.io.enq.ready ## rxBuffer.io.deq.valid ## txBuffer.io.enq.ready
   )
 
 }
